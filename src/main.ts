@@ -1,12 +1,18 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
-import { BootstrapVue3 } from 'bootstrap-vue-3'
-
 import App from './App.vue'
 import router from './router'
+import vuetify from './plugins/vuetify'
+import { loadFonts } from './plugins/webfontloader'
 
-const app = createApp(App).use(BootstrapVue3)
+// import '@mdi/font/css/materialdesignicons.css'
+import 'vuetify/styles'
 
+loadFonts()
+
+const app = createApp(App)
+
+app.use(vuetify)
 app.use(createPinia())
 app.use(router)
 

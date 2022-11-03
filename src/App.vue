@@ -5,29 +5,28 @@ import AuthenticationIndicator from '@/components/user/AuthenticationIndicator.v
 </script>
 
 <template>
-  <header>
-    <b-navbar toggleable="lg" type="dark" variant="primary">
+  <v-layout>
+    <v-app-bar>
+      <template v-slot:prepend>
+        <v-app-bar-nav-icon></v-app-bar-nav-icon>
+      </template>
 
-      <b-navbar-brand href="#">Rocket Control Board</b-navbar-brand>
-      <b-navbar-toggle target="nav-collapse"></b-navbar-toggle>
+      <v-app-bar-title>Rocket Control Board</v-app-bar-title>
 
-      <b-collapse id="nav-collapse" is-nav>
-        <b-navbar-nav>
+      <template v-slot:append>
+        <AuthenticationIndicator></AuthenticationIndicator>
+      </template>
+    </v-app-bar>
 
-          <b-nav-form>
-            <AuthenticationIndicator></AuthenticationIndicator>
-          </b-nav-form>
+    <v-main>
+
+      <RouterView />
+    </v-main>
+  </v-layout>
 
 
-        </b-navbar-nav>
 
-      </b-collapse>
-    </b-navbar>
 
-    
-  </header>
-
-  <RouterView />
 </template>
 
 <style lang="scss">
