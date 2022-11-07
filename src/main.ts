@@ -7,6 +7,7 @@ import { loadFonts } from './plugins/webfontloader'
 
 // import '@mdi/font/css/materialdesignicons.css'
 import 'vuetify/styles'
+import { setupCytoscape } from './plugins/cytoscape'
 
 loadFonts()
 
@@ -16,4 +17,7 @@ app.use(vuetify)
 app.use(createPinia())
 app.use(router)
 
+setupCytoscape()
+
 app.mount('#app')
+

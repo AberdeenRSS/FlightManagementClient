@@ -5,7 +5,7 @@ export type LoginStates = 'requestSilent' | 'default' | 'failed' | 'requestLogin
 
 const tenantId = 'ed38e9ed-ef79-4415-b1aa-36e883726313'
 const clientId = 'd9f91861-0388-4e8e-af85-5b91237e64e2'
-const baseUrl = 'http://localhost:5173/'
+const baseUrl = 'http://localhost:4000/'
 
 const msalConfig: msal.Configuration = {
     auth: {

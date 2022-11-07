@@ -3,6 +3,7 @@ import { waitUntil } from '@/helper/reactivity'
 import { useMsal, useUserData } from '../msal/useMsal'
 import axios from 'axios'
 import process from 'process'
+import { createFetch, until, useFetch } from '@vueuse/core'
 
 const baseUri = import.meta.env.VITE_RSS_FLIGHT_SERVER_URL;
 const serverScope = import.meta.env.VITE_RSS_FLIGHT_SERVER_SCOPE;
@@ -13,23 +14,27 @@ const serverScope = import.meta.env.VITE_RSS_FLIGHT_SERVER_SCOPE;
  * @param relativeUri The relative uri to the resource to get (Has to start with a /)
  * @returns the fetched data
  */
-export async function fetchProtectedResource(relativeUri: string){
+export const fetchRssApi = createFetch({
+  baseUrl: baseUri,
+  options: {
+    async beforeFetch({ options }: {options: any}) {
 
+      const { activeAccount } = useUserData()
+      const { msalInstance } = useMsal()
 
-    const { activeAccount } = useUserData()
-    const { msalInstance } = useMsal()
+      // Wait until there is current (logged in account)
+      const account = await until(activeAccount).toBeTruthy()
 
-    // Wait until there is current (logged in account)
-    const account = await waitUntil(activeAccount, (current) => !!current)
+      // Get an authentication token to make an authenticated request to the api (should be cached most of the time)
+      const token = await msalInstance.value.acquireTokenSilent({scopes: [serverScope], account: account!})
 
-    // Get an authentication token to make an authenticated request to the api (should be cached most of the time)
-    const token = await msalInstance.value.acquireTokenSilent({scopes: [serverScope], account: account!})
+      options.headers.Authorization = `Bearer ${token.accessToken}`
 
-    // Create headers
-    const headers = {
-        'x-access-tokens': `Bearer ${token.accessToken}`
-      }
+      return { options }
+    },
+  },
+  fetchOptions: {
+    mode: 'cors',
+  },
+})
 
-
-    return await axios.get(`${baseUri}${relativeUri}`, {headers})
-}
