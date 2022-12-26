@@ -19,7 +19,7 @@
                 <tr v-for="(item, key) in flights" :key="key">
                     <td>{{ item.flight!._id }}</td>
                     <td>{{ item.flight!.name }}</td>
-                    <td><v-btn @click="router.push(`./vessel/details/${item.flight!._id}`)">Details</v-btn></td>
+                    <td><v-btn @click="router.push(`/flight/${item.flight._vessel_id}/${item.flight!._id}`)">Details</v-btn></td>
                 </tr>
             </tbody>
         </v-table>

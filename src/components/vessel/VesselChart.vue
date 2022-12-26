@@ -10,6 +10,7 @@ import { useVesselStore, type Vessel } from '@/stores/vessels';
 import cytoscape from 'cytoscape'
 import { computed, getCurrentInstance, onMounted, reactive, ref, render, toRefs, watch } from 'vue';
 import * as color from 'color'
+import { until } from '@vueuse/shared';
 
 const viewport = ref<HTMLDivElement | null>(null)
 const virtualComp = ref<HTMLDivElement | null>(null)
@@ -23,28 +24,29 @@ const props = defineProps({
 
 const { vesselId } = toRefs(props)
 
-function x(){
-    console.log(vesselId.value)
-}
-
+// Own state
+const selectedParts = ref({} as {[id: string]: boolean})
+const emit = defineEmits<{
+  (event: 'selectedParts', selectedParts: {[id: string]: boolean}): void
+}>()
+watch(selectedParts, p => emit('selectedParts', p))
 
 const vesselStore = useVesselStore()
 vesselStore.fetchVesselsIfNecessary()
 
-const { $vesselId } = reactive({$vesselId: vesselId})
 
-const vesselRaw = computed(() => vesselStore.vessels[$vesselId]?.entity );
-
-const {$vesselRaw} = reactive({$vesselRaw: vesselRaw})
-
+const vesselRaw = computed(() => vesselStore.vessels[vesselId.value]?.entity );
 
 const vesselChartData = computed(() => {
-    return $vesselRaw?.parts.map(p => ({id: p._id, parent: p.parent ?? $vesselId, name: p.name, type: p.part_type}))
+
+    return vesselRaw.value?.parts.map(p => ({id: p._id, parent: p.parent ?? vesselId.value, name: p.name, type: p.part_type}))
 })
 
 
 onMounted(() => {
 
+    let oldNodes: cytoscape.CollectionReturnValue | undefined = undefined;
+    let oldVessel: cytoscape.CollectionReturnValue | undefined = undefined;
 
     const cy = cytoscape({
 
@@ -74,7 +76,10 @@ onMounted(() => {
                     },
                     'label': 'data(name)',
                     'shape': 'round-rectangle',
-                    'border-width': 1,
+                    'border-color': 'black',
+                    'border-width': (n) => n.selected() ? 10 : 0,
+                    'border-style': (n) => n.selected() ? 'double' : 'solid',
+
                 }
             },
             {
@@ -103,8 +108,10 @@ onMounted(() => {
 
         // const domElem = document.createElement("div")
         // domElem.innerHTML = "hi"
+        if(oldVessel)
+            cy.remove(oldVessel)
 
-        cy.add({data: {id: v._id, name: v.name,  dom: virtualComp.value}, group: 'nodes'})
+        oldVessel = cy.add({data: {id: v._id, name: v.name,  dom: virtualComp.value}, group: 'nodes'})
 
         cy.center()
 
@@ -116,10 +123,23 @@ onMounted(() => {
         
     }, {immediate: true});
 
-    watch(vesselChartData, cd => {
+    watch(vesselChartData, async (cd) => {
+
+        await until(vesselRaw).toBeTruthy()
+
         if(!cd)
             return;
-        cy.add(cd.map(d => ({data: d, group: 'nodes'})))
+
+        if(oldNodes)
+            cy.remove(oldNodes)
+
+        const vesselParts = cy.add(cd.map(d => ({data: d, group: 'nodes'})))
+        oldNodes = vesselParts;
+
+        // Register event listeners to tell what component is selected
+        vesselParts.on('select', e => selectedParts.value = {...selectedParts.value, [e.target._private.data.id]: true})
+        vesselParts.on('unselect', e => selectedParts.value = {...selectedParts.value, [e.target._private.data.id]: false})
+
         cy.center()
 
         cy.layout( {
@@ -141,7 +161,6 @@ onMounted(() => {
 .viewport {
     width: 30vw;
     height: 40vh;
-    border-width: 1px;
 }
 </style>
   

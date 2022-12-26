@@ -46,7 +46,7 @@ export const useFlightStore = defineStore({
         });
         
         existingEntry.loading = 'LOADED'
-    }
+    },
   }
 })
 
