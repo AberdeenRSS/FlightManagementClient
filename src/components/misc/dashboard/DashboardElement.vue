@@ -1,5 +1,5 @@
 <template>
-    <div :draggable="true" @dragstart="startDrag" class="widged-cotnainer" :style="`width: ${tileSize * sizeX}vw; height: ${tileSize * sizeY}vw;`">
+    <div :draggable="true" @dragstart="startDrag" class="widget-cotnainer" :style="`width: ${tileSize * sizeX}vw; height: ${tileSize * sizeY}vw;`">
         <span ref="slotContent">
             <slot ></slot>
         </span>
@@ -7,7 +7,8 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, toRefs, useSlots, onRenderTracked, type VNode, type VNodeRef, onMounted, onRenderTriggered, watch, type WatchStopHandle } from 'vue';
+import { computed, ref, toRefs, type VNode, type VNodeRef,  watch, type WatchStopHandle, provide } from 'vue';
+import { DASHBOARD_WIDGET_ID } from './DashboardComposable';
 
 const slotContent = ref<VNodeRef | null>(null)
 
@@ -16,6 +17,10 @@ const props = defineProps({
         type: String,
         required: true
     },
+    dashboardId: {
+        type: String,
+        required: true,
+    },
     gridColumns: {
         type: Number,
         required: true
@@ -23,16 +28,46 @@ const props = defineProps({
     gridMargin: {
         type: Number,
         default: 0
+    },
+    sizeX: {
+        type: Number,
+        required: true
+    },
+    sizeY: {
+        type: Number,
+        required: true
+    },
+    incorrectSize: {
+        type: Boolean,
+        default: false
     }
 })
 
-const { gridColumns, gridMargin, id } = toRefs(props)
+const emit = defineEmits<{
+    // The requested size is the size the user want the element to have
+    // The dashboard has to check this size, if it's acceptable, 
+    // it sets the new size of the element, if not the old size is
+    // used and the incorrectSize prop is set
+  (event: 'requestResize', selectedParts: {sizeX: number, sizeY: number}): void
+}>()
 
-const sizeX = ref(1)
-const sizeY = ref(1)
+const { gridColumns, gridMargin, id, dashboardId } = toRefs(props)
+
+provide(DASHBOARD_WIDGET_ID, [dashboardId.value, id.value])
+
+const requestSizeX = ref(1)
+const requestSizeY = ref(1)
+watch([requestSizeX, requestSizeY], ([reqX, reqY]) => emit('requestResize', {sizeX: reqX, sizeY: reqY}))
 
 const tileSize = computed(() => (100 - (gridMargin.value * 2)) / gridColumns.value)
 
+/**
+ * When the component gets dragged the id
+ * needs to be set on the data transfer,
+ * so the dashboard can know on drop what element
+ * needs to be changed
+ * @param evt The original drag event
+ */
 function startDrag(evt: DragEvent) {
     evt.dataTransfer!.dropEffect = 'move';
     evt.dataTransfer!.effectAllowed = 'move';
@@ -48,17 +83,17 @@ watch(slotContent, content => {
     if(!content)
         return;
         
-    const widgedSize = ((content as any).firstElementChild?.__vnode as VNode).props?.widgedSize
+    const widgetSize = ((content as any).firstElementChild?.__vnode as VNode).props?.widgetSize
 
-    if(!widgedSize)
+    if(!widgetSize)
         return;
 
     if(stopHandle)
         stopHandle()
 
-    stopHandle = watch(widgedSize, s => {
-        sizeX.value = s.x
-        sizeY.value = s.y
+    stopHandle = watch(widgetSize, s => {
+        requestSizeX.value = s.x
+        requestSizeY.value = s.y
     })
 
 }, {immediate: true})
@@ -66,7 +101,7 @@ watch(slotContent, content => {
 </script>
 
 <style>
-.widged-cotnainer {
-   padding: 1rem;
+.widget-cotnainer {
+   padding: 0rem;
 }
 </style>

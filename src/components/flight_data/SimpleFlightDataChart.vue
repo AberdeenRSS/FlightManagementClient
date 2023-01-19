@@ -1,35 +1,37 @@
 <template>
-            <v-navigation-drawer permanent expand-on-hover rail location="right" width="300">
-                <v-list>
-                    <v-list-item prepend-icon="mdi-engine" :title="part?.name"></v-list-item>
-                </v-list>
+    <v-navigation-drawer permanent expand-on-hover rail location="right" width="300">
+        <v-list>
+            <v-list-item prepend-icon="mdi-engine" :title="part?.name"></v-list-item>
+        </v-list>
 
-                <v-divider></v-divider>
+        <v-divider></v-divider>
 
-                <v-list density="compact" nav>
-                    <v-list-item prepend-icon="mdi-update">
-                        <template v-slot:default>
-                            <v-switch color="red" label="Realtime" v-model="realtime"></v-switch>
-                        </template>
-                    </v-list-item>
-                    <v-list-item v-if="!realtime" prepend-icon="mdi-calendar-range" title="Shared with me">
-                        <template v-slot:prepend>
-                        <div class="pa-0">
-                            
-                            <v-text-field hint="Start" type="datetime-local" single-line variant="underlined" density="compact" >
-                            </v-text-field>
-                            <v-text-field hint="End" type="datetime-local" single-line variant="underlined" density="compact" >
-                            </v-text-field>
-                        </div>
-                        </template>
-                    </v-list-item>
-                </v-list>
-            </v-navigation-drawer>
-            <v-main>
-                <div>
-                    <div  :id="divID"></div>
-                </div>
-            </v-main>
+        <v-list density="compact" nav>
+            <v-list-item prepend-icon="mdi-update">
+                <template v-slot:default>
+                    <v-switch color="red" label="Realtime" v-model="realtime"></v-switch>
+                </template>
+            </v-list-item>
+            <v-list-item v-if="!realtime" prepend-icon="mdi-calendar-range" title="Shared with me">
+                <template v-slot:prepend>
+                    <div class="pa-0">
+
+                        <v-text-field hint="Start" type="datetime-local" single-line variant="underlined"
+                            density="compact">
+                        </v-text-field>
+                        <v-text-field hint="End" type="datetime-local" single-line variant="underlined"
+                            density="compact">
+                        </v-text-field>
+                    </div>
+                </template>
+            </v-list-item>
+        </v-list>
+    </v-navigation-drawer>
+    <v-main>
+        <div>
+            <div :id="divID"></div>
+        </div>
+    </v-main>
 
 </template>
 

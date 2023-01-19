@@ -1,6 +1,6 @@
 <template>
 
-    <v-card style="height: 100%; width: 100%;" :widgedSize="size">
+    <v-card style="height: 100%; width: 100%;" :widgetSize="size">
 
 
         <v-layout style="height: 100%; width: 100%;">
@@ -25,6 +25,7 @@
                             <v-btn
                                 class="ma-2"
                                 color="error"
+                                @click="deleteWidget()"
                             >Delete</v-btn>
                         </v-list-item>
                     </v-list>
@@ -38,9 +39,7 @@
 
             <template v-if="selectedView === 'resize'">
                 <v-main>
-                    <v-text-field label="Width"  v-model="size.x"></v-text-field>
-                    <v-text-field label="Height"  v-model="size.y"></v-text-field>
-
+                    <DashboardResizer></DashboardResizer>
                 </v-main>
             </template>
 
@@ -54,9 +53,18 @@
 <script setup lang="ts">
 
 import VesselChart from '@/components/vessel/VesselChart.vue';
+import DashboardResizer from '@/components/misc/dashboard/DashboardResizer.vue'
 
-import { ref } from 'vue';
+import { inject, ref } from 'vue';
 import { toRefs } from 'vue';
+import { DASHBOARD_WIDGET_ID, useDashboardWidgetStore } from '../misc/dashboard/DashboardComposable';
+
+const dashboardWidgetId = inject(DASHBOARD_WIDGET_ID)
+
+if (!dashboardWidgetId)
+    throw new Error('Resizer not used in within a dashboard')
+
+const { deleteWidget } = useDashboardWidgetStore(dashboardWidgetId)
 
 type Views = 'part' | 'data' | 'status' | 'command' | 'resize'
 

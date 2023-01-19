@@ -35,4 +35,8 @@ const router = useRouter()
 @import './assets/main.scss';
 @import 'node_modules/billboard.js/src/scss/billboard.scss';
 
+html {
+    width: 100vw;
+}
+
 </style>

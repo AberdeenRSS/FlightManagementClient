@@ -1,15 +1,17 @@
 <template>
 
-    <div style="padding: 2vw;" class="drop-container">
-        <div class="d-flex flex-row drop-row" v-for="row in matrix" :key="row[0].j">
-            <div v-for="col in row" class="widged" :style="`width: ${tileSize}vw; height: ${tileSize}vw;`" :key="col.i"
+    <div class="drop-container">
+        <div class="d-flex flex-row drop-row" v-for="row in store.matrix" :key="row[0].x">
+            <div v-for="col in row" class="widget" :style="`width: ${tileSize}vw; height: ${tileSize}vw;`" :key="col.y"
                 @dragover="onDragover" @dragenter="onDragenter($event, col)" @dragleave="onDragleave($event, col)" @drop="onDrop($event, col)">
-                <DashboardElement v-if="!!col.element" :grid-columns="cols"
+                <DashboardElement v-if="!!col.element" :grid-columns="store.cols" :dashboard-id="dashboardID"
                     :size-x="col.element.sizeX" :size-y="col.element.sizeY" :grid-margin="margin" :id="col.element.id">
-                    <slot :name="col.element.id"></slot>
+                    <slot :id="col.element.id"></slot>
                 </DashboardElement>
-                <div v-else class="widged-placeholder-container">
-                    <div :class="`widged-placeholder ${getHoverClass(col)}`"></div>
+                <div v-else class="widget-placeholder-container">
+                    <div v-ripple :class="`widget-placeholder ${getHoverClass(col)}`" @click="onAddWidget(col)">
+                        <div class="show-on-hover add-button" ><v-icon icon="mdi-plus" size="x-large"></v-icon></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -17,96 +19,47 @@
     </div>
 </template>
 
-
-
 <script setup lang="ts">
-import { computed, ref, toRefs, type Ref, useSlots, watch } from 'vue';
+import { computed, ref, toRefs, type Ref, useSlots, watch, provide } from 'vue';
 import DashboardElement from './DashboardElement.vue'
+import { DASHBOARD_ID, useDashboardStore, type Widget, type WidgetMatrix, type WidgetSlot } from './DashboardComposable'
 import { v4 } from 'uuid'
 
-type Widged = { sizeX: number; sizeY: number; id: string }
 type HoverClasses = '' | 'hover-success' | 'hover-failure'
-type WidgedSlot = { element: Widged | null; blocked: string | undefined, hoverCount: number; i: number; j: number }
-type WidgedRow = WidgedSlot[]
-type WidgedMatrix = WidgedRow[]
 
 const passedSlots = useSlots()
+const dashboardID = v4()
+const margin = 0
 
-const rows = 6
-const cols = 6
-const margin = 2
+provide(DASHBOARD_ID, dashboardID)
 
-const matrixProto: WidgedMatrix = []
-for (let i = 0; i < rows; i++) {
-    matrixProto[i] = []
-    for (let j = 0; j < cols; j++) {
-        matrixProto[i][j] = { element: null, blocked: undefined, hoverCount: 0, i, j }
-    }
-}
+const { store, putWidget, addWidget, tryGetWidget, evaluateCollide, resetCollide, getCurrentSlot, removeWidget, initMatrix  } = useDashboardStore(dashboardID)
 
+const tileSize = computed(() => (100 - margin * 2) / store.value.cols)
 
-const matrix = ref(matrixProto);
-const widgeds: Ref<Widged[]> = ref([])
-const canDrop = ref(false)
-const tileSize = computed(() => (100 - margin * 2) / cols)
-const widgedDict = computed(() => getWidgedLookup(widgeds.value))
+store.value.rows = 3
+store.value.cols = 6
+initMatrix()
 
 
+let i = 0;
+Object.keys(passedSlots).forEach(k => {
 
-    let i = 0;
-    Object.keys(passedSlots).forEach(k => {
+    const slot = passedSlots[k]
 
-        const slot = passedSlots[k]
+    const widget: Widget = { sizeX: 2, sizeY: 2, id: k, badSize: false } 
+    store.value.widgets.push(widget)
 
-        
+    putWidget(store.value.matrix[0][i*2], widget)
 
-        const widged: Widged = { sizeX: 2, sizeY: 2, id: k } 
-        widgeds.value.push(widged)
-
-        putWidged(matrix.value[0][i*2], widged)
-
-        i++;
-    })
-
-function putWidged(slot: WidgedSlot, widged: Widged){
-
-    slot.element = widged;
-
-    for(let i = slot.i; i < (slot.i+widged.sizeY); i++){
-        for(let j = slot.j; j < (slot.j+widged.sizeY); j++){
-            matrix.value[i][j].blocked = widged.id;
-        }
-    }
-}
-
-function removeWidged(slot: WidgedSlot){
-
-    const removed = slot.element
-    if(!removed)
-        return undefined
-
-    for(let i = slot.i; i < (slot.i+removed.sizeY); i++){
-        for(let j = slot.j; j < (slot.j+removed.sizeY); j++){
-            matrix.value[i][j].element = null;
-            matrix.value[i][j].blocked = undefined;
-        }
-    }
-
-    return removed
-}
+    i++;
+})
 
 
-function getHoverClass(item: WidgedSlot): HoverClasses {
+function getHoverClass(item: WidgetSlot): HoverClasses {
     return item.hoverCount > 0 ?
-        (canDrop.value ? 'hover-success' : 'hover-failure')
+        (store.value.canDrop ? 'hover-success' : 'hover-failure')
         : ''
-}
-
-function getWidgedLookup(widgeds: Widged[]) {
-    const dict: { [uuid: string]: Widged } = {}
-    // Make lowercase as the event data does the same
-    widgeds.forEach(w => dict[w.id.toLowerCase()] = w)
-    return dict;
 }
 
 function onDragover(event: DragEvent) {
@@ -114,93 +67,56 @@ function onDragover(event: DragEvent) {
     event.stopPropagation()
 }
 
-function onDragenter(event: DragEvent, item: WidgedSlot) {
+function onDragleave(event: DragEvent, item: WidgetSlot) {
     event.preventDefault()
 
-    const widged = tryGetWidged(event)
-    if (!widged)
+    const widget = tryGetWidget(event)
+    if (!widget)
         return
 
-    evaluateCollide(item, widged, true)
+    evaluateCollide(item, widget, false)
 }
 
-function onDragleave(event: DragEvent, item: WidgedSlot) {
-    event.preventDefault()
-
-    const widged = tryGetWidged(event)
-    if (!widged)
-        return
-
-    evaluateCollide(item, widged, false)
-}
-
-function onDrop(event: DragEvent, item: WidgedSlot){
+function onDrop(event: DragEvent, item: WidgetSlot){
 
     event.preventDefault()
 
-    const widged = tryGetWidged(event)
-    if (!widged)
+    const widget = tryGetWidget(event)
+    if (!widget)
         return
 
-    if(!canDrop.value){
+    if(!store.value.canDrop){
         resetCollide()
         return
     }
 
-    const oldSlot = matrix.value.map(row => row.find(c => c.element?.id === widged.id)).find(c => !!c)
+    const oldSlot = getCurrentSlot(widget)
 
-    const removedWidged = removeWidged(oldSlot!)
+    const removedWidget = removeWidget(oldSlot!)
 
-    putWidged(item, removedWidged!)
+    putWidget(item, removedWidget!)
 
     resetCollide()
 }
 
-function evaluateCollide(initiatingSlot: WidgedSlot, initiatingWidged: Widged, add: boolean) {
-    // 1. Get affected slots
-    const slots: (WidgedSlot | undefined)[] = []
+function onDragenter(event: DragEvent, item: WidgetSlot) {
+    event.preventDefault()
 
-    for (let i = initiatingSlot.i; i < (initiatingSlot.i + initiatingWidged.sizeY); i++) {
-        for (let j = initiatingSlot.j; j < (initiatingSlot.j + initiatingWidged.sizeX); j++) {
-            if (i < matrix.value.length && j < matrix.value[i].length)
-                slots.push(matrix.value[i][j])
-            else
-                slots.push(undefined)
-        }
-    }
+    const widget = tryGetWidget(event)
+    if (!widget)
+        return
 
-    if (add) {
-        if (slots.some(s => !s || (!!s.element && s.element.id !== initiatingWidged.id) || (!!s.blocked && s.blocked !== initiatingWidged.id) ))
-            canDrop.value = false
-        else
-            canDrop.value = true
-    }
-
-
-    slots.filter(s => !!s).map(s => s!.hoverCount += (add ? 1 : -1))
-    return
+    evaluateCollide(item, widget, true)
 }
 
-
-function resetCollide() {
-    matrix.value.forEach(row => {
-        row.forEach(c => c.hoverCount = 0)
-    })
-}
-
-function tryGetWidged(event: DragEvent) {
-    const uuidPair = event.dataTransfer?.types.find(t => t.startsWith('uuid'))
-    if (!uuidPair)
-        return undefined
-
-    const uuid = uuidPair.split('*')[1]
-    return widgedDict.value[uuid]
+function onAddWidget(col: WidgetSlot){
+    addWidget(col, {sizeX: 1, sizeY: 1, id: v4(), badSize: false})
 }
 
 </script>
 
-<style>
-/* .widged {
+<style lang="scss">
+/* .widget {
     border: 1px solid;
 }
 
@@ -213,18 +129,38 @@ function tryGetWidged(event: DragEvent) {
 
 } */
 
-.widged-placeholder-container {
+.widget-placeholder-container {
     width: 100%;
     height: 100%;
     padding: 1rem;
 }
 
-.widged-placeholder {
+.widget-placeholder {
     background-color: lightgray;
-    border-radius: 2rem;
+    border-radius: 1.5rem;
     width: 100%;
     height: 100%;
     /* border: solid 0px black; */
+
+    &:hover {
+        background-color: darken(lightgray, 20%);
+    }
+
+    // &:active {
+    //     background-color: darken(lightgray, 40%);
+    // }
+
+    &:hover > .show-on-hover{
+        display: inherit;
+    }
+}
+
+.show-on-hover{
+    display: none;
+}
+
+.add-button {
+    padding: 1rem;
 }
 
 .hover-success {

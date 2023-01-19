@@ -25,12 +25,10 @@
         <v-progress-circular indeterminate></v-progress-circular>
     </div>
 
-    <WidgedDashboard>
-        <template v-slot:VesselSelect>
-            <VesselComponentDashboardElem :vessel-id="vessel_id" >
+    <WidgetDashboard>
+            <VesselComponentDashboardElem v-slot="slotData" :vessel-id="vessel_id" >
                        
             </VesselComponentDashboardElem>
-        </template>
         <!-- <template v-slot:Preview>
             <v-card height="100%" width="100%">
                 <VesselComponentDashboardElem v-if="selected">
@@ -40,7 +38,7 @@
                 </VesselComponentDashboardElem>
             </v-card>
         </template> -->
-    </WidgedDashboard>
+    </WidgetDashboard>
 
 </template>
 
@@ -57,7 +55,7 @@ import VesselComponentDashboardElem from '@/components/flight_data/VesselCompone
 import SimpleFlightDataChart from '@/components/flight_data/SimpleFlightDataChart.vue';
 import { waitUntil } from '@/helper/reactivity';
 
-import WidgedDashboard from '@/components/misc/dashboard/WidgedDashboard.vue'
+import WidgetDashboard from '@/components/misc/dashboard/WidgedDashboard.vue'
 
 const route = useRoute()
 const vessel_id = route.params.vessel_id as string
