@@ -37,6 +37,10 @@
                 <VesselChart :vessel-id="vesselId" @selected-parts="onPartsSelected"></VesselChart>
             </template>
 
+            <template v-if="selectedView === 'data' && selected">
+                <SimpleFlightDataChart :vessel-id="vesselId" :flight-id="flightId" :vessel-part-id="selected"></SimpleFlightDataChart>
+            </template>
+
             <template v-if="selectedView === 'resize'">
                 <v-main>
                     <DashboardResizer></DashboardResizer>
@@ -58,6 +62,7 @@ import DashboardResizer from '@/components/misc/dashboard/DashboardResizer.vue'
 import { inject, ref } from 'vue';
 import { toRefs } from 'vue';
 import { DASHBOARD_WIDGET_ID, useDashboardWidgetStore } from '../misc/dashboard/DashboardComposable';
+import SimpleFlightDataChart from './SimpleFlightDataChart.vue'
 
 const dashboardWidgetId = inject(DASHBOARD_WIDGET_ID)
 
@@ -74,10 +79,14 @@ const props = defineProps({
     vesselId: {
         type: String,
         required: true
-    }
+    },
+    flightId: {
+        type: String,
+        required: true
+    },
 });
 
-const { vesselId } = toRefs(props)
+const { vesselId, flightId } = toRefs(props)
 
 const drawerExpanded = ref(true)
 

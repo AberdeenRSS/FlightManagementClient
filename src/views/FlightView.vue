@@ -26,7 +26,7 @@
     </div>
 
     <WidgetDashboard>
-            <VesselComponentDashboardElem v-slot="slotData" :vessel-id="vessel_id" >
+            <VesselComponentDashboardElem v-slot="slotData" :vessel-id="vessel_id" :flight-id="id" >
                        
             </VesselComponentDashboardElem>
         <!-- <template v-slot:Preview>

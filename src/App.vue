@@ -26,9 +26,6 @@ const router = useRouter()
     </v-main>
   </v-layout>
 
-
-
-
 </template>
 
 <style lang="scss">
