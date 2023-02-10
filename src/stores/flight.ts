@@ -64,6 +64,8 @@ export type Flight = {
     _id: string;
     _vessel_id: string;
     name: string;
+    start: string;
+    end: string | undefined; 
 }
 
 type FlightState = {

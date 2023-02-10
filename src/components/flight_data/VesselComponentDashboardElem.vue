@@ -38,7 +38,7 @@
             </template>
 
             <template v-if="selectedView === 'data' && selected">
-                <SimpleFlightDataChart :vessel-id="vesselId" :flight-id="flightId" :vessel-part-id="selected"></SimpleFlightDataChart>
+                <SimpleFlightDataChart :vessel-id="vesselId" :flight-id="flightId" :vessel-part-id="selected" :selected-time-range="selectedTimeRange"></SimpleFlightDataChart>
             </template>
 
             <template v-if="selectedView === 'resize'">
@@ -84,9 +84,13 @@ const props = defineProps({
         type: String,
         required: true
     },
+    selectedTimeRange: {
+        type: Object,
+        required: true
+    }
 });
 
-const { vesselId, flightId } = toRefs(props)
+const { vesselId, flightId, selectedTimeRange } = toRefs(props)
 
 const drawerExpanded = ref(true)
 

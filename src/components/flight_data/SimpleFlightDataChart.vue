@@ -57,10 +57,14 @@ const props = defineProps({
     vesselPartId: {
         type: String,
         required: true
+    },
+    selectedTimeRange: {
+        type: Object,
+        required: true
     }
 });
 
-const { flightId, vesselPartId, vesselId } = toRefs(props)
+const { flightId, vesselPartId, vesselId, selectedTimeRange } = toRefs(props)
 
 const realtime = ref(false)
 
@@ -75,7 +79,7 @@ const part = computed(() => getVessel(vesselId.value)?.parts.find(p => p._id ===
 if (!store.flight_data)
     store.flight_data = {}
 
-watch([flightId, vesselPartId], ([v, id]) => store.fetchFlightDataInTimeFrame(v, id, new Date(Date.now() - 1000 * 60 * 60 * 24 * 3), new Date(Date.now() + 1000 * 60 * 60 * 24 * 3)), { immediate: true })
+watch([flightId, vesselPartId, selectedTimeRange], ([v, id, timeRange]) => store.fetchFlightDataInTimeFrame(v, id, timeRange.start, timeRange.end), { immediate: true })
 
 watch([flightId], ([v]) => store.subscribeRealtime(v), { immediate: true })
 
@@ -84,12 +88,12 @@ const data: Ref<FlightDataState | undefined> = ref(undefined)
 
 let oldWatch: WatchStopHandle | undefined = undefined
 
-watch([store.flight_data, flightId, vesselPartId], ([flight_data, flight, part]) => {
+watch([store.flight_data, flightId, vesselPartId, selectedTimeRange], ([flight_data, flight, part, timeRange]) => {
 
     const id = `${flight}*${part}`
 
     if (!flight_data[id]) {
-        store.fetchFlightDataInTimeFrame(flight, part, new Date(Date.now() - 1000 * 60 * 60 * 24 * 3), new Date(Date.now() + 1000 * 60 * 60 * 24 * 3))
+        store.fetchFlightDataInTimeFrame(flight, part, timeRange.start, timeRange.end)
         store.subscribeRealtime(flight)
     }
 

@@ -22,4 +22,3 @@ setupCytoscape()
 app.mount('#app')
 
 
-
