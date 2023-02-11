@@ -7,7 +7,7 @@
         <div class="playbar-container">
 
             <!-- Div element that draws the play bar itself and how the bar is colored in different areas -->
-            <div class="playbar" ref="containerRef">
+            <div class="playbar" ref="containerRef" @click="dragCurrent($event)" >
 
                 <div class="selected-range" :style="`left: ${(rangeMinInternal) * 100}%; right: ${(1 - rangeMaxInternal) * 100}%;`">
                 </div>
@@ -16,9 +16,8 @@
             <!-- The selectors on the timeline. The position is set to absolute and gets calculated -->
             <div class="min-selector" :style="`left: ${(rangeMinInternal) * 100}%;`" @mouseenter="displayMinPreview++"
                 @mouseleave="displayMinPreview--">
-                <div class="selector-bar">
-                    <div class="drag-box" draggable="true" @dragstart="onDragMinStart($event)" @drag="onDragMin($event)"
-                        @dragend="onDragMinEnd($event)"></div>
+                <div :class="'selector-bar' + (displayMinPreview ? ' selector-hover' : '')">
+                    <div class="drag-box" @mousedown="onDragMinStart($event)" @touchstart="onDragMinStart($event)"></div>
                 </div>
                 <div class="time-tooltip" v-if="displayMinPreview > 0">
                     {{ startDateFormatted }}
@@ -27,9 +26,8 @@
 
             <div class="current-selector" :style="`left: ${(currentInternal) * 100}%;`" @mouseenter="displayCurrentPreview++"
                 @mouseleave="displayCurrentPreview--">
-                <div class="selector-bar">
-                    <div class="drag-box" draggable="true" @dragstart="onDragCurStart($event)" @drag="onDragCur($event)"
-                        @dragend="onDragCurEnd($event)"></div>
+                <div :class="'selector-bar' + (displayCurrentPreview ? ' selector-hover' : '')">
+                    <div class="drag-box" @mousedown="onDragCurStart($event)" @touchstart="onDragCurStart($event)"></div>
                 </div>
                 <div class="time-tooltip" v-if="displayCurrentPreview > 0">
                     {{ currentDateFormatted }}
@@ -38,9 +36,8 @@
 
             <div class="max-selector" :style="`right: ${(1 - rangeMaxInternal) * 100}%;`" @mouseenter="displayMaxPreview++"
                 @mouseleave="displayMaxPreview--">
-                <div class="drag-box" draggable="true" @dragstart="onDragMaxStart($event)" @drag="onDragMax($event)"
-                    @dragend="onDragMaxEnd($event)"></div>
-                <div class="selector-bar"></div>
+                <div class="drag-box" @mousedown="onDragMaxStart($event)" @touchstart="onDragMaxStart($event)"></div>
+                <div :class="'selector-bar' + (displayMaxPreview ? ' selector-hover' : '')"></div>
                 <div class="time-tooltip" v-if="displayMaxPreview > 0">
                     {{ endDateFormatted }}
                 </div>
@@ -91,8 +88,12 @@
 </template>
 
 <script lang="ts" setup>
-import { formatDate, timestamp, toRefs } from '@vueuse/core';
+import { debouncedWatch, formatDate, hasOwn, timestamp, toRefs } from '@vueuse/core';
 import { computed, ref, watch, type VNodeRef, onUnmounted } from 'vue';
+
+type TouchOrMouseEvent = TouchEvent | MouseEvent;
+
+const isTouchEvent = ($event: TouchOrMouseEvent): $event is TouchEvent => !!($event as TouchEvent).touches
 
 const speeds = [0.5, 1, 1.5, 2, 5, 10, 20, 50, 100]
 const speed = ref(1)
@@ -111,6 +112,11 @@ const currentDate = ref(new Date())
 const displayMinPreview = ref(0)
 const displayCurrentPreview = ref(0)
 const displayMaxPreview = ref(0)
+
+const draggingRangeMin = ref(false)
+const draggingRangeMax = ref(false)
+const draggingCurrent = ref(false)
+
 
 const containerRef = ref<VNodeRef | undefined>(undefined);
 const destroyed = ref(false);
@@ -150,9 +156,11 @@ const emit = defineEmits<{
   (event: 'currentDate', date: Date): void,
 }>()
 
-watch(startDate, d => emit('rangeMinDate', d))
-watch(endDate, d => emit('rangeMinDate', d))
-watch(currentDate, d => emit('currentDate', d))
+
+
+debouncedWatch(startDate, d => emit('rangeMinDate', d), {debounce: 100})
+debouncedWatch(endDate, d => emit('rangeMinDate', d), {debounce: 100})
+debouncedWatch(currentDate, d => emit('currentDate', d), {debounce: 100})
 
 // #region Computed values
 
@@ -273,6 +281,34 @@ function getRelativeTimelinePosition(xPosition: number) {
 //#endregion
 
 // #region UI events
+
+
+
+function onMouseMove($event: TouchOrMouseEvent){
+    onDragMin($event)
+    onDragMax($event)
+    onDragCur($event)
+}
+
+function onMouseUp($event: TouchOrMouseEvent){
+    onDragMinEnd($event)
+    onDragMaxEnd($event)
+    onDragCurEnd($event)
+}
+
+window.addEventListener('mousemove', onMouseMove)
+window.addEventListener('mouseup', onMouseUp)
+
+// window.addEventListener('mousedown', () => console.log('onmousedown'))
+
+// window.addEventListener('mousemove', () => console.log('onmouse'))
+// window.addEventListener('mouseup', () => console.log('onmouseup'))
+
+window.addEventListener('touchmove', onMouseMove)
+window.addEventListener('touchend', onMouseUp)
+window.addEventListener('touchcancel', onMouseUp)
+
+
 function onPlay() {
     playing.value = !playing.value;
     setTimeOffset()
@@ -285,35 +321,55 @@ function onLive() {
     if (live.value)
         speed.value = 1
 }
-function onDragMinStart($event: DragEvent) {
+function onDragMinStart($event: TouchOrMouseEvent) {
+
+
     displayMinPreview.value++
+    draggingRangeMin.value = true
 }
-function onDragMin($event: DragEvent) {
+function onDragMin($event: TouchOrMouseEvent) {
+    if(!draggingRangeMin.value)
+        return
     dragMin($event)
 }
-function onDragMinEnd($event: DragEvent) {
+function onDragMinEnd($event: TouchOrMouseEvent) {
+    if(!draggingRangeMin.value)
+        return
     displayMinPreview.value--
+    draggingRangeMin.value = false
     dragMin($event)
 }
-function onDragMaxStart($event: DragEvent) {
+function onDragMaxStart($event: TouchOrMouseEvent) {
     displayMaxPreview.value++
+    draggingRangeMax.value = true
 }
-function onDragMax($event: DragEvent) {
+function onDragMax($event: TouchOrMouseEvent) {
+    if(!draggingRangeMax.value)
+        return
     dragMax($event)
 }
-function onDragMaxEnd($event: DragEvent) {
+function onDragMaxEnd($event: TouchOrMouseEvent) {
+    if(!draggingRangeMax.value)
+        return
     displayMaxPreview.value--
+    draggingRangeMax.value = false
     dragMax($event)
 }
 
-function onDragCurStart($event: DragEvent) {
+function onDragCurStart($event: TouchOrMouseEvent) {
     displayCurrentPreview.value++
+    draggingCurrent.value = true
 }
-function onDragCur($event: DragEvent) {
+function onDragCur($event: TouchOrMouseEvent) {
+    if(!draggingCurrent.value)
+        return
     dragCurrent($event)
 }
-function onDragCurEnd($event: DragEvent) {
+function onDragCurEnd($event: TouchOrMouseEvent) {
+    if(!draggingCurrent.value)
+        return
     displayCurrentPreview.value--
+    draggingCurrent.value = false
     dragCurrent($event)
 }
 
@@ -321,16 +377,17 @@ function onDragCurEnd($event: DragEvent) {
 
 // #region Dragging handlers
 
-function dragMin($event: DragEvent) {
+function dragMin($event: TouchOrMouseEvent) {
 
     if (!containerRef.value)
         return
 
-    // Fixes bug of elements snapping back to the start
-    if ($event.x <= 0)
+    const positionX = isTouchEvent($event) ? $event.touches?.[0]?.pageX : $event.pageX
+
+    if(!positionX)
         return
 
-    let percentage = getRelativeTimelinePosition($event.pageX)
+    let percentage = getRelativeTimelinePosition(positionX)
 
     if (percentage > rangeMaxInternal.value)
         percentage = rangeMaxInternal.value
@@ -342,16 +399,21 @@ function dragMin($event: DragEvent) {
     setTimeOffset()
 }
 
-function dragCurrent($event: DragEvent) {
+function dragCurrent($event: TouchOrMouseEvent) {
 
     if (!containerRef.value)
         return
 
-    // Fixes bug of elements snapping bag to the start
-    if ($event.x <= 0)
+    const positionX = isTouchEvent($event) ? $event.touches?.[0]?.pageX : $event.pageX
+
+    if(!positionX)
         return
 
-    const percentage = getRelativeTimelinePosition($event.pageX)
+    // Fixes bug of elements snapping bag to the start
+    // if ($event.x <= 0)
+    //     return
+
+    const percentage = getRelativeTimelinePosition(positionX)
 
     currentInternal.value = percentage
     if (rangeMinInternal.value > percentage)
@@ -362,16 +424,17 @@ function dragCurrent($event: DragEvent) {
     setTimeOffset()
 }
 
-function dragMax($event: DragEvent) {
+function dragMax($event: TouchOrMouseEvent) {
 
     if (!containerRef.value)
         return
 
-    // Fixes bug of elements snapping bag to the start
-    if ($event.x <= 0)
+    const positionX = isTouchEvent($event) ? $event.touches?.[0]?.pageX : $event.pageX
+
+    if(!positionX)
         return
 
-    let percentage = getRelativeTimelinePosition($event.pageX)
+    let percentage = getRelativeTimelinePosition(positionX)
 
     if (percentage < rangeMinInternal.value)
         percentage = rangeMinInternal.value
@@ -464,6 +527,7 @@ $playbar-color: lightgray;
         height: 100%;
         position: absolute;
         cursor: pointer;
+        z-index: 600;
     }
 
 
@@ -477,9 +541,9 @@ $playbar-color: lightgray;
         justify-content: center;
         align-items: center;
 
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
+        // -webkit-user-select: none;
+        // -moz-user-select: none;
+        // -ms-user-select: none;
         user-select: none;
 
         .time-tooltip {
@@ -494,6 +558,13 @@ $playbar-color: lightgray;
 
         }
 
+
+
+    }
+
+    .selector-hover {
+
+            filter: invert(20%);
     }
 
     .min-selector {
@@ -512,7 +583,8 @@ $playbar-color: lightgray;
             background-repeat: no-repeat;
             background-size: contain;
             height: 100%;
-            aspect-ratio: 1
+            aspect-ratio: 1;
+
         }
     }
 
@@ -529,7 +601,7 @@ $playbar-color: lightgray;
             background-repeat: no-repeat;
             background-size: contain;
             height: 100%;
-            aspect-ratio: 1
+            aspect-ratio: 1;
         }
     }
 
@@ -540,6 +612,8 @@ $playbar-color: lightgray;
             position: absolute;
             top: 0;
             left: 0;
+
+            transform: scaleY(300%);
         }
 
 
@@ -550,14 +624,15 @@ $playbar-color: lightgray;
             z-index: 502;
 
             background-color: $range-select-color;
-            height: 30%;
+            height: 40%;
             // width: 2rem;
             aspect-ratio: 1;
             padding-top: 100%;
-            border-radius: 4rem;
+            border-radius: 5rem;
             border-style: solid;
-            border-width: 1;
+            border-width: 1px;
             border-color: invert($range-select-color);
+
         }
     }
 }
