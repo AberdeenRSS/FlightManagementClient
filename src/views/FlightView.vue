@@ -19,7 +19,6 @@
         </v-container>
 
 
-
     </template>
     <div v-else>
         <v-progress-circular indeterminate></v-progress-circular>
@@ -41,6 +40,8 @@
     </WidgetDashboard>
 
     <div class="playbar-drawer">
+        <CommandDispatch :vessel-id="vessel_id" :flight-id="id"></CommandDispatch>
+        <hr>
         <AdvancedDatetimeSelector :start-date="startTime" :end-date="endTime" @current-date="currentDate = $event" @range-min-date="rangeMinDate = $event" @range-max-date="rangeMaxDate = $event" ></AdvancedDatetimeSelector>
     </div>
 
@@ -61,8 +62,10 @@ import { waitUntil } from '@/helper/reactivity';
 
 import WidgetDashboard from '@/components/misc/dashboard/WidgedDashboard.vue'
 import AdvancedDatetimeSelector from '@/components/misc/advanced-datetime-selector/AdvancedDatetimeSelector.vue';
+import CommandDispatch from '@/components/command/CommandDispatch.vue'
 
 type TimeRange = {start: Date, end: Date, cur: Date}
+
 
 const route = useRoute()
 const vessel_id = route.params.vessel_id as string
@@ -85,7 +88,11 @@ const currentDate = ref(new Date())
 const selectedDatetime = ref<TimeRange>({start: new Date(), end: new Date(), cur: new Date()})
 
 watch([rangeMinDate, rangeMaxDate, currentDate], ([start, end, cur]) => {
-    selectedDatetime.value = {start, end, cur};
+    selectedDatetime.value.start = start;
+    selectedDatetime.value.end = end;
+    selectedDatetime.value.cur = start;
+
+    //  = {start, end, cur};
 }, {immediate: true})
 
 </script>

@@ -6,9 +6,13 @@
     
     <v-divider></v-divider>
 
-    <div class="d-flex">
-      <VesselChart :vessel-id="id"></VesselChart>
-      <FlightList :vessel-id="id"></FlightList>
+    <div class="d-flex" style="min-height: 80vh;">
+      <div style="flex-basis: 200px; flex-grow: 0.4;">
+        <VesselChart v-model="selected" :vessel-id="id"></VesselChart>
+      </div>
+      <div>
+        <FlightList :vessel-id="id"></FlightList>
+      </div>
     </div>
 
     
@@ -24,6 +28,7 @@ import VesselChart from '@/components/vessel/VesselChart.vue';
 import FlightList from '@/components/flights/FlightList.vue';
 import { useVesselStore } from '@/stores/vessels';
 import { useRoute } from 'vue-router';
+import { ref } from 'vue';
 
 
 
@@ -36,6 +41,7 @@ vesselStore.fetchVesselsIfNecessary()
 
 const getVessel = vesselStore.getVessel
 
+const selected = ref({})
 
 </script>
 <style>

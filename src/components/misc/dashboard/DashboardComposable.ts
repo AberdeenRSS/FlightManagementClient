@@ -3,7 +3,7 @@ import { computed, ref, watch, type InjectionKey, type Ref } from "vue";
 export const DASHBOARD_ID: InjectionKey<string> = Symbol()
 export const DASHBOARD_WIDGET_ID: InjectionKey<[string, string]> = Symbol()
 
-export type Widget = { sizeX: number; sizeY: number; id: string, badSize: boolean }
+export type Widget = { sizeX: number; sizeY: number; id: string, badSize: boolean, data: {[key: string]: any} }
 export type WidgetSlot = { element: Widget | null; blocked: string | undefined, hoverCount: number; y: number; x: number }
 export type WidgetRow = WidgetSlot[]
 export type WidgetMatrix = WidgetRow[]

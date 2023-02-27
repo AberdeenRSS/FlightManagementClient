@@ -1,47 +1,22 @@
 <template>
-    <v-navigation-drawer permanent expand-on-hover rail location="right" width="300">
-        <v-list>
-            <v-list-item prepend-icon="mdi-engine" :title="part?.name"></v-list-item>
-        </v-list>
-
-        <v-divider></v-divider>
-
-        <v-list density="compact" nav>
-            <v-list-item prepend-icon="mdi-update">
-                <template v-slot:default>
-                    <v-switch color="red" label="Realtime" v-model="realtime"></v-switch>
-                </template>
-            </v-list-item>
-            <v-list-item v-if="!realtime" prepend-icon="mdi-calendar-range" title="Shared with me">
-                <template v-slot:prepend>
-                    <div class="pa-0">
-
-                        <v-text-field hint="Start" type="datetime-local" single-line variant="underlined"
-                            density="compact">
-                        </v-text-field>
-                        <v-text-field hint="End" type="datetime-local" single-line variant="underlined"
-                            density="compact">
-                        </v-text-field>
-                    </div>
-                </template>
-            </v-list-item>
-        </v-list>
-    </v-navigation-drawer>
-    <v-main>
-        <div>
-            <div :id="divID"></div>
-        </div>
-    </v-main>
-
+    <div :id="divID" class="chart"></div>
 </template>
+
+<style lang="scss">
+    .chart {
+        height: 100%;
+        width: 100%;
+    }
+</style>
 
 <script setup lang="ts">
 import { fetchRssApi } from '@/composables/api/rssFlightServerApi';
-import { until } from '@vueuse/core';
+import { until, watchThrottled } from '@vueuse/core';
 import { computed, onMounted, reactive, toRefs, watch, onUnmounted, ref, type Ref, type WatchStopHandle } from 'vue';
-import bb, { line, zoom, type Chart } from "billboard.js";
-import { isAggregatedMeasurement, useFlightDataStore, type FlightDataState } from '@/stores/flight_data'
+import bb, { line, scatter, zoom, type Chart } from "billboard.js";
+import { isAggregatedMeasurement, useFlightDataStore, type FlightDataChunkAggregated, type FlightDataState } from '@/stores/flight_data'
 import { useVesselStore } from '@/stores/vessels';
+import { getValues } from '@/helper/timeTree';
 
 const divID = `chart_div${Math.floor(Math.random() * 1000000)}`
 
@@ -68,7 +43,7 @@ const { flightId, vesselPartId, vesselId, selectedTimeRange } = toRefs(props)
 
 const realtime = ref(false)
 
-const store = useFlightDataStore()
+const { store: store$, fetchFlightDataInTimeFrame } = useFlightDataStore()
 
 const vesselStore = useVesselStore()
 vesselStore.fetchVesselsIfNecessary()
@@ -76,35 +51,16 @@ const getVessel = vesselStore.getVessel
 
 const part = computed(() => getVessel(vesselId.value)?.parts.find(p => p._id === vesselPartId.value))
 
-if (!store.flight_data)
-    store.flight_data = {}
-
-watch([flightId, vesselPartId, selectedTimeRange], ([v, id, timeRange]) => store.fetchFlightDataInTimeFrame(v, id, timeRange.start, timeRange.end), { immediate: true })
-
-watch([flightId], ([v]) => store.subscribeRealtime(v), { immediate: true })
-
-
 const data: Ref<FlightDataState | undefined> = ref(undefined)
 
-let oldWatch: WatchStopHandle | undefined = undefined
-
-watch([store.flight_data, flightId, vesselPartId, selectedTimeRange], ([flight_data, flight, part, timeRange]) => {
+watch([store$, flightId, vesselPartId, selectedTimeRange], ([store, flight, part, timeRange]) => {
 
     const id = `${flight}*${part}`
 
-    if (!flight_data[id]) {
-        store.fetchFlightDataInTimeFrame(flight, part, timeRange.start, timeRange.end)
-        store.subscribeRealtime(flight)
-    }
+    data.value = store.flight_data?.[id]
 
-    if (oldWatch)
-        oldWatch()
 
-    oldWatch = watch(flight_data[id], d => {
-        data.value = d
-    }, { immediate: true })
-
-}, { immediate: true })
+}, { immediate: true, deep: true })
 
 const chart$ = ref<Chart | undefined>(undefined)
 const prev$ = ref<string[] | undefined>(undefined)
@@ -112,7 +68,7 @@ const prev$ = ref<string[] | undefined>(undefined)
 function loadChartData(chart: Chart, flightData: FlightDataState | undefined) {
 
 
-    if (!flightData || flightData.measuredValues.length < 1) {
+    if (!flightData) {
 
         if (prev$.value)
             chart.unload({ ids: [...prev$.value] })
@@ -124,19 +80,35 @@ function loadChartData(chart: Chart, flightData: FlightDataState | undefined) {
     const times = ['time'] as (string | Date)[]
     const data = {} as { [seriesName: string]: (string | number | boolean)[] }
 
-    flightData.measuredValues.forEach(r => {
+    const curMeasurements = getValues(flightData.measurements, selectedTimeRange.value.start, selectedTimeRange.value.end, 'decisecond')
 
-        const date = r._datetime ?? r.start_date;
+    curMeasurements.forEach(x => {
+
+        const r = x as FlightDataChunkAggregated
+
+        const date = typeof r.start_date === 'string' ? new Date(Date.parse(r.start_date)) : r.start_date;
         if (!date)
+            return;
+
+        if (date.getTime() < selectedTimeRange.value.start.getTime())
+            return;
+
+        if (date.getTime() > selectedTimeRange.value.end.getTime())
             return;
 
         times.push(date)
         Object.keys(r.measured_values).forEach(s => {
+            const value = r.measured_values[s]
+
+            const valueActual = isAggregatedMeasurement(value) ? (value.avg ?? value.min ?? value.max) : value
+
+            if(typeof valueActual === 'string' )
+                return
+
             if (!data[s])
                 data[s] = [s]
 
-            const value = r.measured_values[s]
-            data[s].push(isAggregatedMeasurement(value) ? value.avg : value)
+            data[s].push(valueActual)
         })
     })
 
@@ -161,14 +133,21 @@ onMounted(() => {
             columns: [
 
             ],
-            type: line(),
+            type: scatter(),
+        },
+        scatter: {
+            zerobased: true
         },
         axis: {
             x: {
                 type: "timeseries",
                 tick: {
-                    format: "%Y-%m-%d"
+                    format: "%H:%M:%S",
+                    rotate: 60,
+                    fit: false
                 }
+            },
+            y: {
             }
         },
         tooltip: {
@@ -186,12 +165,15 @@ onMounted(() => {
     chart$.value = chart
 
 
-    watch(data, (flightData) => {
+    watchThrottled([data, selectedTimeRange], ([flightData, range]) => {
+
+        if (!flightData)
+            return
 
         loadChartData(chart, flightData)
 
 
-    }, { immediate: true, deep: true })
+    }, { immediate: true, deep: true, throttle: 500 })
 
 })
 

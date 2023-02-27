@@ -1,68 +1,96 @@
 <template>
-
     <v-card style="height: 100%; width: 100%;" :widgetSize="size">
+        <div style="height: 100%; padding: 0 1rem;">
+
+            <span v-if="inSettings">
+
+                <div class="d-flex flex-column" style="height: 100%;">
+
+                    <span class="tabs">
+
+                        <v-tabs  density="compact" align-tabs="start" v-model="selectedTab" >
+                            <v-tab v-for="item in tabs" :key="item" :value="item">
+                                {{ item }}
+                            </v-tab>
+                        </v-tabs>
+                    </span>
 
 
-        <v-layout style="height: 100%; width: 100%;">
+                    <!-- <span v-if="selectedTab === 'Select View'"> -->
 
-            <v-navigation-drawer permanent expand-on-hover rail location="left" :model-value="drawerExpanded">
+                    <div v-if="selectedTab === 'Select View'">
+                        <v-select label="View" v-model="selectedView" :items="views"></v-select>
+                    </div>
 
-                <v-list density="compact" nav>
-                    <v-list-item prepend-icon="mdi-shape" title="Select Parts" :active="selectedView === 'part'" @click="selectedView = 'part'"></v-list-item>
-                    <v-list-item prepend-icon="mdi-chart-timeline-variant" title="Data" :active="selectedView === 'data'" @click="selectedView = 'data'">
-                    </v-list-item>
-                    <v-list-item prepend-icon="mdi-poll" title="Status" :active="selectedView === 'status'" @click="selectedView = 'status'">
-                    </v-list-item>
-                    <v-list-item prepend-icon="mdi-console" title="Send command" :active="selectedView === 'command'" @click="selectedView = 'command'">
-                    </v-list-item>
-                </v-list>
+                    <div v-if="selectedTab === 'Select Part'" class="align-self-stretch" style="flex-grow: 1;">
+                        <!-- <label>Select Part</label> -->
+                        <VesselChart :vessel-id="vesselId" v-model="selectedParts"></VesselChart>
+                    </div>
 
-                <template v-slot:append>
-                    <v-list density="compact" nav>
-                        <v-list-item prepend-icon="mdi-arrow-split-horizontal" title="Resize" :active="selectedView === 'resize'" @click="selectedView = 'resize'"></v-list-item>
-                        <v-list-item>
-                            <template v-slot:prepend><v-icon icon="mdi-delete-forever" color="error"></v-icon></template>
-                            <v-btn
-                                class="ma-2"
-                                color="error"
-                                @click="deleteWidget()"
-                            >Delete</v-btn>
-                        </v-list-item>
-                    </v-list>
-                </template>
 
-            </v-navigation-drawer>
+                    <!-- </span> -->
 
-            <template v-if="selectedView === 'part'">
-                <VesselChart :vessel-id="vesselId" @selected-parts="onPartsSelected"></VesselChart>
-            </template>
+                    <v-template v-if="selectedTab === 'General'">
 
-            <template v-if="selectedView === 'data' && selected">
-                <SimpleFlightDataChart :vessel-id="vesselId" :flight-id="flightId" :vessel-part-id="selected" :selected-time-range="selectedTimeRange"></SimpleFlightDataChart>
-            </template>
+                        <div>
+                            <DashboardResizer></DashboardResizer>
+                        </div>
 
-            <template v-if="selectedView === 'resize'">
-                <v-main>
-                    <DashboardResizer></DashboardResizer>
-                </v-main>
-            </template>
 
-        </v-layout>
+                        <div>
+                            <v-btn color="error" @click="deleteWidget()">Delete</v-btn>
+                        </div>
 
+                    </v-template>
+
+                        <v-btn variant="outlined" @click="inSettings = false">Done</v-btn>
+
+                </div>
+
+            </span>
+
+            <div v-if="!inSettings && selectedView === 'Graph'" class="d-flex flex-column" style="height: 100%;">
+
+                <div v-if="!inSettings" class="d-flex justify-space-between align-center">
+                    <v-btn v-if="!inSettings" icon="mdi-cog-outline" variant="plain" @click="inSettings = true"></v-btn>
+                    <div>{{ title }}</div>
+                    <div><v-icon icon="mdi-engine"></v-icon></div>
+                </div>
+
+                <div  class="flex-grow-1">
+                    <SimpleFlightDataChart :vessel-id="vesselId" :flight-id="flightId" :vessel-part-id="selected!" :selected-time-range="selectedTimeRange"></SimpleFlightDataChart>
+                </div>
+
+            </div>
+
+        </div>
     </v-card>
 
-
 </template>
+
+<style lang="scss">
+
+.tabs {
+
+    .v-btn__content {
+        font-size: 0.6rem;
+    }
+}
+
+</style>
 
 <script setup lang="ts">
 
 import VesselChart from '@/components/vessel/VesselChart.vue';
 import DashboardResizer from '@/components/misc/dashboard/DashboardResizer.vue'
 
-import { inject, ref } from 'vue';
+import { computed, inject, ref, watch } from 'vue';
 import { toRefs } from 'vue';
 import { DASHBOARD_WIDGET_ID, useDashboardWidgetStore } from '../misc/dashboard/DashboardComposable';
 import SimpleFlightDataChart from './SimpleFlightDataChart.vue'
+import { useFlightDataStore } from '@/stores/flight_data'
+import { throttledWatch, watchDebounced, watchThrottled } from '@vueuse/shared';
+import { useVesselStore } from '@/stores/vessels';
 
 const dashboardWidgetId = inject(DASHBOARD_WIDGET_ID)
 
@@ -73,7 +101,15 @@ const { deleteWidget } = useDashboardWidgetStore(dashboardWidgetId)
 
 type Views = 'part' | 'data' | 'status' | 'command' | 'resize'
 
-const size = ref({x: 2, y: 2})
+const tabs = ['Select View', 'Select Part', 'General']
+
+const selectedTab = ref<string>('Select View')
+
+const views = ['Graph']
+
+const selectedView = ref('Graph')
+
+const size = ref({ x: 2, y: 2 })
 
 const props = defineProps({
     vesselId: {
@@ -90,23 +126,44 @@ const props = defineProps({
     }
 });
 
+const { fetchFlightDataInTimeFrame } = useFlightDataStore()
+
+const { getVessel } = useVesselStore()
+
 const { vesselId, flightId, selectedTimeRange } = toRefs(props)
 
-const drawerExpanded = ref(true)
+const vessel = computed(() => getVessel(vesselId.value)) 
 
-const selectedView = ref<Views>('part')
+const title = computed(() => selected.value ? vessel.value?.parts.find(p => p._id === selected.value)?.name : 'No Part Selected')
+
+const inSettings = ref(true)
 
 const selected = ref<string | undefined>(undefined)
 
+const selectedParts = ref<{[id: string]: boolean}>({})
+
+watch(selectedParts, onPartsSelected, {immediate: true})
+
 async function onPartsSelected(parts: { [id: string]: boolean }) {
-    const new_selected = Object.keys(parts).filter(k => parts[k])
-    if (new_selected.length < 1) {
+
+    const newSelected = Object.keys(parts).filter(k => parts[k])
+
+    if (newSelected.length < 1) {
         selected.value = undefined
         return
     }
 
-    selected.value = new_selected[0]
-
+    selected.value = newSelected[0]
 }
 
+watchThrottled([flightId, selected, selectedTimeRange], ([v, id, timeRange]) => {
+
+    if (!id)
+        return
+
+    fetchFlightDataInTimeFrame(v, id, timeRange.start, timeRange.end)
+}
+    , { immediate: true, deep: true, debounce: true, throttle: 200 })
+
 </script>
+

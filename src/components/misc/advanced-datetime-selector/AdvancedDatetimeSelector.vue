@@ -156,11 +156,9 @@ const emit = defineEmits<{
   (event: 'currentDate', date: Date): void,
 }>()
 
-
-
-debouncedWatch(startDate, d => emit('rangeMinDate', d), {debounce: 100})
-debouncedWatch(endDate, d => emit('rangeMinDate', d), {debounce: 100})
-debouncedWatch(currentDate, d => emit('currentDate', d), {debounce: 100})
+watch(rangeMinDate, d => setTimeout(() => emit('rangeMinDate', d), 0))
+watch(rangeMaxDate, d => setTimeout(() => emit('rangeMaxDate', d), 0))
+watch(currentDate,  d => setTimeout(() => emit('currentDate', d), 0))
 
 // #region Computed values
 

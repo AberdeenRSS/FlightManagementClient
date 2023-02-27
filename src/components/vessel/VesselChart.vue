@@ -19,27 +19,33 @@ const props = defineProps({
     vesselId: {
         type: String,
         required: true
+    },
+    modelValue: {
+        type: Object,
+        required: true
     }
 });
 
-const { vesselId } = toRefs(props)
+const emit = defineEmits<{
+    (event: 'update:modelValue', selectedParts: { [id: string]: boolean }): void
+}>()
+
+const { vesselId, modelValue } = toRefs(props)
 
 // Own state
-const selectedParts = ref({} as {[id: string]: boolean})
-const emit = defineEmits<{
-  (event: 'selectedParts', selectedParts: {[id: string]: boolean}): void
-}>()
-watch(selectedParts, p => emit('selectedParts', p))
+const selectedParts = ref({} as { [id: string]: boolean })
+
+watch(selectedParts, p => emit('update:modelValue', p))
 
 const vesselStore = useVesselStore()
 vesselStore.fetchVesselsIfNecessary()
 
 
-const vesselRaw = computed(() => vesselStore.vessels[vesselId.value]?.entity );
+const vesselRaw = computed(() => vesselStore.vessels[vesselId.value]?.entity);
 
 const vesselChartData = computed(() => {
 
-    return vesselRaw.value?.parts.map(p => ({id: p._id, parent: p.parent ?? vesselId.value, name: p.name, type: p.part_type}))
+    return vesselRaw.value?.parts.map(p => ({ id: p._id, parent: p.parent ?? vesselId.value, name: p.name, type: p.part_type }))
 })
 
 
@@ -47,6 +53,8 @@ onMounted(() => {
 
     let oldNodes: cytoscape.CollectionReturnValue | undefined = undefined;
     let oldVessel: cytoscape.CollectionReturnValue | undefined = undefined;
+
+    const cyElements = ref<cytoscape.CollectionReturnValue | undefined>(undefined);
 
     const cy = cytoscape({
 
@@ -61,12 +69,11 @@ onMounted(() => {
                     'background-color': (n) => {
                         const type = (n.data('type') as string | undefined);
 
-                        if(!type)
+                        if (!type)
                             return '#666'
 
                         let sum = 0;
-                        for(let i = 0; i < type.length; i++)
-                        {
+                        for (let i = 0; i < type.length; i++) {
                             sum += type.charCodeAt(i)
                         }
 
@@ -103,50 +110,66 @@ onMounted(() => {
 
 
     watch(vesselRaw, v => {
-        if(!v)
+        if (!v)
             return
 
         // const domElem = document.createElement("div")
         // domElem.innerHTML = "hi"
-        if(oldVessel)
+        if (oldVessel)
             cy.remove(oldVessel)
 
-        oldVessel = cy.add({data: {id: v._id, name: v.name,  dom: virtualComp.value}, group: 'nodes'})
+        oldVessel = cy.add({ data: { id: v._id, name: v.name, dom: virtualComp.value }, group: 'nodes' })
 
         cy.center()
 
-        cy.layout( {
+        cy.layout({
             name: 'grid',
             cols: 1,
             avoidOverlap: true
         }).run()
-        
-    }, {immediate: true});
+
+    }, { immediate: true });
 
     watch(vesselChartData, async (cd) => {
 
         await until(vesselRaw).toBeTruthy()
 
-        if(!cd)
+        if (!cd)
             return;
 
-        if(oldNodes)
+        if (oldNodes)
             cy.remove(oldNodes)
 
-        const vesselParts = cy.add(cd.map(d => ({data: d, group: 'nodes'})))
+        const vesselParts = cy.add(cd.map(d => ({ data: d, group: 'nodes' })))
         oldNodes = vesselParts;
 
         // Register event listeners to tell what component is selected
-        vesselParts.on('select', e => selectedParts.value = {...selectedParts.value, [e.target._private.data.id]: true})
-        vesselParts.on('unselect', e => selectedParts.value = {...selectedParts.value, [e.target._private.data.id]: false})
+        vesselParts.on('select', e => selectedParts.value = { ...selectedParts.value, [e.target._private.data.id]: true })
+        vesselParts.on('unselect', e => selectedParts.value = { ...selectedParts.value, [e.target._private.data.id]: false })
 
         cy.center()
 
-        cy.layout( {
+        cy.layout({
             name: 'grid',
             cols: 1,
             avoidOverlap: true
         }).run()
+
+        cyElements.value = cy.elements()
+
+    }, { immediate: true })
+
+    watch([modelValue, cyElements], ([selected, elems]) => {
+
+        if(!elems)
+            return
+
+        elems.forEach(elem => {
+            if (selected[elem.id()])
+                elem.select()
+            else
+                elem.unselect()
+        })
 
     }, {immediate: true})
 
@@ -159,8 +182,9 @@ onMounted(() => {
 
 <style>
 .viewport {
-    width: 30vw;
-    height: 40vh;
+    height: 100%;
+    width: 100%;
+    z-index: 700;
 }
 </style>
   
