@@ -11,35 +11,26 @@
 
 <script setup lang="ts">
 import { fetchRssApi } from '@/composables/api/rssFlightServerApi';
-import { until, watchThrottled } from '@vueuse/core';
-import { computed, onMounted, reactive, toRefs, watch, onUnmounted, ref, type Ref, type WatchStopHandle } from 'vue';
+import { until, watchDebounced, watchThrottled } from '@vueuse/core';
+import { computed, onMounted, reactive, toRefs, watch, onUnmounted, ref, type Ref, type WatchStopHandle, inject } from 'vue';
 import bb, { line, scatter, zoom, type Chart } from "billboard.js";
-import { isAggregatedMeasurement, useFlightDataStore, type FlightDataChunkAggregated, type FlightDataState } from '@/stores/flight_data'
+import { isAggregatedMeasurement, useFlightDataStore, type FlightDataChunk, type FlightDataChunkAggregated, type FlightDataState } from '@/stores/flight_data'
 import { useVesselStore } from '@/stores/vessels';
-import { getValues } from '@/helper/timeTree';
+import { getValues, type AggregationLevels } from '@/helper/timeTree';
+import { useSelectedPart } from './flightDashboardElemStoreTypes';
+import { DASHBOARD_WIDGET_ID } from '../misc/dashboard/DashboardComposable';
+import { useFlightViewState, type TimeRange } from '@/composables/useFlightView';
 
 const divID = `chart_div${Math.floor(Math.random() * 1000000)}`
 
-const props = defineProps({
-    vesselId: {
-        type: String,
-        required: true
-    },
-    flightId: {
-        type: String,
-        required: true
-    },
-    vesselPartId: {
-        type: String,
-        required: true
-    },
-    selectedTimeRange: {
-        type: Object,
-        required: true
-    }
-});
+const dashboardWidgetId = inject(DASHBOARD_WIDGET_ID)
 
-const { flightId, vesselPartId, vesselId, selectedTimeRange } = toRefs(props)
+if (!dashboardWidgetId)
+    throw new Error('Resizer not used in within a dashboard')
+
+const { vesselId, flightId, timeRange, resolution, live } = useFlightViewState() 
+
+const vesselPartId = useSelectedPart(dashboardWidgetId)
 
 const realtime = ref(false)
 
@@ -53,19 +44,19 @@ const part = computed(() => getVessel(vesselId.value)?.parts.find(p => p._id ===
 
 const data: Ref<FlightDataState | undefined> = ref(undefined)
 
-watch([store$, flightId, vesselPartId, selectedTimeRange], ([store, flight, part, timeRange]) => {
+watch([store$, flightId, vesselPartId], ([store, flight, part]) => {
 
     const id = `${flight}*${part}`
 
     data.value = store.flight_data?.[id]
 
 
-}, { immediate: true, deep: true })
+}, { immediate: true, deep: true})
 
 const chart$ = ref<Chart | undefined>(undefined)
 const prev$ = ref<string[] | undefined>(undefined)
 
-function loadChartData(chart: Chart, flightData: FlightDataState | undefined) {
+function loadChartData(chart: Chart, flightData: FlightDataState | undefined, range: TimeRange, resolution: AggregationLevels | 'smallest', isLive: boolean) {
 
 
     if (!flightData) {
@@ -80,20 +71,23 @@ function loadChartData(chart: Chart, flightData: FlightDataState | undefined) {
     const times = ['time'] as (string | Date)[]
     const data = {} as { [seriesName: string]: (string | number | boolean)[] }
 
-    const curMeasurements = getValues(flightData.measurements, selectedTimeRange.value.start, selectedTimeRange.value.end, 'decisecond')
+    const curMeasurements = resolution === 'smallest' ? 
+        getValues(flightData.measurements, timeRange.value.start, timeRange.value.end) 
+        : getValues(flightData.measurements, timeRange.value.start, timeRange.value.end, true, resolution)
 
     curMeasurements.forEach(x => {
 
-        const r = x as FlightDataChunkAggregated
+        const r = x
 
-        const date = typeof r.start_date === 'string' ? new Date(Date.parse(r.start_date)) : r.start_date;
+        const date = r.getDateTime()
+
         if (!date)
             return;
 
-        if (date.getTime() < selectedTimeRange.value.start.getTime())
+        if (date.getTime() < timeRange.value.start.getTime())
             return;
 
-        if (date.getTime() > selectedTimeRange.value.end.getTime())
+        if (date.getTime() > timeRange.value.end.getTime())
             return;
 
         times.push(date)
@@ -133,7 +127,7 @@ onMounted(() => {
             columns: [
 
             ],
-            type: scatter(),
+            type: line(),
         },
         scatter: {
             zerobased: true
@@ -159,21 +153,24 @@ onMounted(() => {
         zoom: {
             enabled: zoom(),
         },
+        transition: {
+            duration: 0,
+        },
         bindto: `#${divID}`
     });
 
     chart$.value = chart
 
 
-    watchThrottled([data, selectedTimeRange], ([flightData, range]) => {
+    watchDebounced([data, timeRange, resolution, live], ([flightData, range, resolution, isLive]) => {
 
         if (!flightData)
             return
 
-        loadChartData(chart, flightData)
+        loadChartData(chart, flightData, range, resolution, isLive)
 
 
-    }, { immediate: true, deep: true, throttle: 500 })
+    }, { immediate: true, deep: true, debounce: 100, maxWait: 300 })
 
 })
 

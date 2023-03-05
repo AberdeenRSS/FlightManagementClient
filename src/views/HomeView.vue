@@ -7,7 +7,7 @@ import VesselOverview from '@/components/vessel/VesselOverview.vue'
 <template>
   <main>
 
-    <h1 class="container text-center">Rocket Control Board</h1>
+    <!-- <h1 class="container text-center">Rocket Control Board</h1> -->
 
 
     <VesselOverview></VesselOverview>

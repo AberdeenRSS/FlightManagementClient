@@ -52,7 +52,7 @@
                     @click="onPlay()"></v-btn>
             </div>
 
-            <div class="nav-elem-end">
+            <div v-if="liveEnabled" class="nav-elem-end">
                 <v-btn variant="plain" :ripple="false" :rounded="0" :color="live ? 'red-darken-3' : 'grey'"
                     @click="onLive()">Live</v-btn>
             </div>
@@ -77,386 +77,14 @@
                 {{ currentDateFormatted }}
             </div>
 
+            <slot name="nav-items">
+
+            </slot>
 
         </div>
     </div>
 
-
-
-
-
 </template>
-
-<script lang="ts" setup>
-import { debouncedWatch, formatDate, hasOwn, timestamp, toRefs } from '@vueuse/core';
-import { computed, ref, watch, type VNodeRef, onUnmounted } from 'vue';
-
-type TouchOrMouseEvent = TouchEvent | MouseEvent;
-
-const isTouchEvent = ($event: TouchOrMouseEvent): $event is TouchEvent => !!($event as TouchEvent).touches
-
-const speeds = [0.5, 1, 1.5, 2, 5, 10, 20, 50, 100]
-const speed = ref(1)
-
-const playing = ref(false)
-const live = ref(false)
-
-const rangeMinInternal = ref(0.1)
-const rangeMaxInternal = ref(0.9)
-const currentInternal = ref(0.2)
-
-const rangeMinDate = ref(new Date())
-const rangeMaxDate = ref(new Date())
-const currentDate = ref(new Date())
-
-const displayMinPreview = ref(0)
-const displayCurrentPreview = ref(0)
-const displayMaxPreview = ref(0)
-
-const draggingRangeMin = ref(false)
-const draggingRangeMax = ref(false)
-const draggingCurrent = ref(false)
-
-
-const containerRef = ref<VNodeRef | undefined>(undefined);
-const destroyed = ref(false);
-
-const props = defineProps({
-    startDate: {
-        type: Date,
-        required: true
-    },
-    endDate: {
-        type: Date,
-        required: true
-    },
-    rangeMin: {
-        type: Number,
-        default: 0.1
-    },
-    rangeMax: {
-        type: Number,
-        default: 0.9
-    },
-    current: {
-        type: Number,
-        default: 0.5
-    }
-})
-const { startDate, endDate, rangeMin, rangeMax, current } = toRefs(props)
-
-
-rangeMinInternal.value = rangeMin.value
-rangeMaxInternal.value = rangeMax.value
-currentInternal.value = current.value
-
-const emit = defineEmits<{
-  (event: 'rangeMinDate', date: Date): void,
-  (event: 'rangeMaxDate', date: Date): void,
-  (event: 'currentDate', date: Date): void,
-}>()
-
-watch(rangeMinDate, d => setTimeout(() => emit('rangeMinDate', d), 0))
-watch(rangeMaxDate, d => setTimeout(() => emit('rangeMaxDate', d), 0))
-watch(currentDate,  d => setTimeout(() => emit('currentDate', d), 0))
-
-// #region Computed values
-
-watch([startDate, endDate, rangeMinInternal], ([sD, eD, value]) => {
-    rangeMinDate.value = calculateDatetime(sD, eD, value)
-}, { immediate: true, })
-
-watch([startDate, endDate, rangeMaxInternal], ([sD, eD, value]) => {
-    rangeMaxDate.value = calculateDatetime(sD, eD, value)
-}, { immediate: true, })
-
-watch([startDate, endDate, currentInternal], ([sD, eD, value]) => {
-    currentDate.value = calculateDatetime(sD, eD, value)
-}, { immediate: true, })
-
-const startDateFormatted = computed(() => formatDate(rangeMinDate.value, 'HH:mm:ss DD.MM.YYYY'))
-const endDateFormatted = computed(() => formatDate(rangeMaxDate.value, 'HH:mm:ss DD.MM.YYYY'))
-const currentDateFormatted = computed(() => formatDate(currentDate.value, 'HH:mm:ss DD.MM.YYYY'))
-
-// #endregion
-
-//#region Time advancing
-
-// Offset of the current marker to now. This will be used to
-// keep the scrubber at a constant offset to this time. This
-// is better than trying to figure out how much time has passed
-// between the frames, as this avoids rounding errors and ensures
-// 1. That time is actually advancing at real speed
-// 2. That the offset will stay the same event if the time cannot due to the end being reached
-// Note: positive for values before now
-let timeOffsetCurrent = 0
-let timeOffsetMinRange = 0
-let timeOffsetMaxRange = 0
-
-function setTimeOffset() {
-    timeOffsetCurrent = Date.now() - currentDate.value.getTime()
-    timeOffsetMinRange = Date.now() - rangeMinDate.value.getTime()
-    timeOffsetMaxRange = Date.now() - rangeMaxDate.value.getTime()
-}
-
-setTimeOffset()
-
-function play(_: any) {
-
-    advanceTime()
-
-    if (!destroyed.value)
-        requestAnimationFrame(play)
-}
-
-let timeOfLastAdvance: number | undefined = undefined
-
-function advanceTime() {
-
-    if (displayCurrentPreview.value)
-        return
-
-    const previousTime = timeOfLastAdvance
-    timeOfLastAdvance = Date.now()
-
-    if (!previousTime && speed.value !== 1)
-        return
-
-    const timeStep = (timeOfLastAdvance - (previousTime ?? 0)) * speed.value
-
-    const newTime = speed.value === 1 ?
-        Date.now() - timeOffsetCurrent
-        : currentDate.value.getTime() + timeStep
-
-    const nextDate = calculateRelative(startDate.value, endDate.value, new Date(newTime))
-
-    if (playing.value && nextDate < rangeMaxInternal.value && nextDate <= 1) {
-        currentInternal.value = nextDate
-    }
-
-    const nextRangeMin = calculateRelative(startDate.value, endDate.value, new Date(Date.now() - timeOffsetMinRange))
-    const nextRangeMax = calculateRelative(startDate.value, endDate.value, new Date(Date.now() - timeOffsetMaxRange))
-
-    if (live.value && nextRangeMin <= currentInternal.value)
-        rangeMinInternal.value = nextRangeMin
-
-    if (live.value && nextRangeMax <= 1)
-        rangeMaxInternal.value = nextRangeMax
-}
-
-function calculateDatetime(startDate: Date, endDate: Date, relativeValue: number) {
-    const range = endDate.getTime() - startDate.getTime()
-
-    return new Date(startDate.getTime() + (range * relativeValue))
-}
-
-function calculateRelative(startDate: Date, endDate: Date, date: Date) {
-    const range = endDate.getTime() - startDate.getTime()
-    const timeSinceStart = date.getTime() - startDate.getTime()
-    return timeSinceStart / range
-}
-
-/**
- * Figures out where along the playbar the given
- * position is in percent. Values get clamped between 0 and 1
- * 
- * @param xPosition the pixel value to calculate the relative position for
- */
-function getRelativeTimelinePosition(xPosition: number) {
-    const boundingBox = containerRef.value.getBoundingClientRect() as DOMRect
-
-    const width = boundingBox.width; // The overall width of the slider
-    const left = xPosition - boundingBox.x; // The distance between the mouse and the left side of the slider
-
-    let percentage = left / width
-    if (percentage > 1)
-        percentage = 1
-    if (percentage < 0)
-        percentage = 0
-    return percentage;
-}
-
-//#endregion
-
-// #region UI events
-
-
-
-function onMouseMove($event: TouchOrMouseEvent){
-    onDragMin($event)
-    onDragMax($event)
-    onDragCur($event)
-}
-
-function onMouseUp($event: TouchOrMouseEvent){
-    onDragMinEnd($event)
-    onDragMaxEnd($event)
-    onDragCurEnd($event)
-}
-
-window.addEventListener('mousemove', onMouseMove)
-window.addEventListener('mouseup', onMouseUp)
-
-// window.addEventListener('mousedown', () => console.log('onmousedown'))
-
-// window.addEventListener('mousemove', () => console.log('onmouse'))
-// window.addEventListener('mouseup', () => console.log('onmouseup'))
-
-window.addEventListener('touchmove', onMouseMove)
-window.addEventListener('touchend', onMouseUp)
-window.addEventListener('touchcancel', onMouseUp)
-
-
-function onPlay() {
-    playing.value = !playing.value;
-    setTimeOffset()
-}
-
-function onLive() {
-    live.value = !live.value
-    setTimeOffset()
-
-    if (live.value)
-        speed.value = 1
-}
-function onDragMinStart($event: TouchOrMouseEvent) {
-
-
-    displayMinPreview.value++
-    draggingRangeMin.value = true
-}
-function onDragMin($event: TouchOrMouseEvent) {
-    if(!draggingRangeMin.value)
-        return
-    dragMin($event)
-}
-function onDragMinEnd($event: TouchOrMouseEvent) {
-    if(!draggingRangeMin.value)
-        return
-    displayMinPreview.value--
-    draggingRangeMin.value = false
-    dragMin($event)
-}
-function onDragMaxStart($event: TouchOrMouseEvent) {
-    displayMaxPreview.value++
-    draggingRangeMax.value = true
-}
-function onDragMax($event: TouchOrMouseEvent) {
-    if(!draggingRangeMax.value)
-        return
-    dragMax($event)
-}
-function onDragMaxEnd($event: TouchOrMouseEvent) {
-    if(!draggingRangeMax.value)
-        return
-    displayMaxPreview.value--
-    draggingRangeMax.value = false
-    dragMax($event)
-}
-
-function onDragCurStart($event: TouchOrMouseEvent) {
-    displayCurrentPreview.value++
-    draggingCurrent.value = true
-}
-function onDragCur($event: TouchOrMouseEvent) {
-    if(!draggingCurrent.value)
-        return
-    dragCurrent($event)
-}
-function onDragCurEnd($event: TouchOrMouseEvent) {
-    if(!draggingCurrent.value)
-        return
-    displayCurrentPreview.value--
-    draggingCurrent.value = false
-    dragCurrent($event)
-}
-
-//#endregion
-
-// #region Dragging handlers
-
-function dragMin($event: TouchOrMouseEvent) {
-
-    if (!containerRef.value)
-        return
-
-    const positionX = isTouchEvent($event) ? $event.touches?.[0]?.pageX : $event.pageX
-
-    if(!positionX)
-        return
-
-    let percentage = getRelativeTimelinePosition(positionX)
-
-    if (percentage > rangeMaxInternal.value)
-        percentage = rangeMaxInternal.value
-
-    rangeMinInternal.value = percentage
-    if (currentInternal.value < percentage)
-        currentInternal.value = percentage
-
-    setTimeOffset()
-}
-
-function dragCurrent($event: TouchOrMouseEvent) {
-
-    if (!containerRef.value)
-        return
-
-    const positionX = isTouchEvent($event) ? $event.touches?.[0]?.pageX : $event.pageX
-
-    if(!positionX)
-        return
-
-    // Fixes bug of elements snapping bag to the start
-    // if ($event.x <= 0)
-    //     return
-
-    const percentage = getRelativeTimelinePosition(positionX)
-
-    currentInternal.value = percentage
-    if (rangeMinInternal.value > percentage)
-        rangeMinInternal.value = percentage
-    if (rangeMaxInternal.value < percentage)
-        rangeMaxInternal.value = percentage
-
-    setTimeOffset()
-}
-
-function dragMax($event: TouchOrMouseEvent) {
-
-    if (!containerRef.value)
-        return
-
-    const positionX = isTouchEvent($event) ? $event.touches?.[0]?.pageX : $event.pageX
-
-    if(!positionX)
-        return
-
-    let percentage = getRelativeTimelinePosition(positionX)
-
-    if (percentage < rangeMinInternal.value)
-        percentage = rangeMinInternal.value
-
-    rangeMaxInternal.value = percentage
-    if (currentInternal.value > percentage)
-        currentInternal.value = percentage
-
-    setTimeOffset()
-}
-
-//#endregion
-
-//#region Lifetime
-
-requestAnimationFrame(play)
-
-onUnmounted(() => {
-    destroyed.value = true
-})
-
-//#endregion
-
-</script>
 
 <style lang="scss">
 $range-select-color: black;
@@ -465,7 +93,7 @@ $playbar-color: lightgray;
 .component-root {
     padding: 1rem 4rem;
 
-    @media screen and (max-width: 600px) {
+    @media screen and (max-width: 800px) {
 
         padding: 1rem 1rem;
 
@@ -477,19 +105,15 @@ $playbar-color: lightgray;
         flex-direction: row;
         align-items: center;
         justify-content: start;
-        gap: 1rem;
-        padding-top: 1rem;
-        padding-left: 2rem;
-        padding-right: 2rem;
     }
 
     .nav-elem {}
 
     .time {
         flex-shrink: 0;
-        justify-self: end;
+        // justify-self: end;
         flex-grow: 8;
-        text-align: end;
+        // text-align: end;
     }
 
     .playbar-container {
@@ -635,3 +259,390 @@ $playbar-color: lightgray;
     }
 }
 </style>
+
+<script lang="ts" setup>
+import { debouncedWatch, formatDate, hasOwn, timestamp, toRefs } from '@vueuse/core';
+import { computed, ref, watch, type VNodeRef, onUnmounted } from 'vue';
+
+type TouchOrMouseEvent = TouchEvent | MouseEvent;
+
+const isTouchEvent = ($event: TouchOrMouseEvent): $event is TouchEvent => !!($event as TouchEvent).touches
+
+const speeds = [0.5, 1, 1.5, 2, 5, 10, 20, 50, 100]
+const speed = ref(1)
+
+const playing = ref(false)
+const live = ref(false)
+
+const rangeMinInternal = ref(0.1)
+const rangeMaxInternal = ref(0.9)
+const currentInternal = ref(0.2)
+
+const rangeMinDate = ref(new Date())
+const rangeMaxDate = ref(new Date())
+const currentDate = ref(new Date())
+
+const displayMinPreview = ref(0)
+const displayCurrentPreview = ref(0)
+const displayMaxPreview = ref(0)
+
+const draggingRangeMin = ref(false)
+const draggingRangeMax = ref(false)
+const draggingCurrent = ref(false)
+
+
+const containerRef = ref<VNodeRef | undefined>(undefined);
+const destroyed = ref(false);
+
+const props = defineProps({
+    startDate: {
+        type: Date,
+        required: true
+    },
+    endDate: {
+        type: Date,
+        required: true
+    },
+    rangeMin: {
+        type: Number,
+        default: 0.1
+    },
+    rangeMax: {
+        type: Number,
+        default: 0.9
+    },
+    current: {
+        type: Number,
+        default: 0.5
+    }
+})
+const { startDate, endDate, rangeMin, rangeMax, current } = toRefs(props)
+
+rangeMinInternal.value = rangeMin.value
+rangeMaxInternal.value = rangeMax.value
+currentInternal.value = current.value
+
+const emit = defineEmits<{
+  (event: 'rangeMinDate', date: Date): void,
+  (event: 'rangeMaxDate', date: Date): void,
+  (event: 'currentDate', date: Date): void,
+  (event: 'live', live: boolean): void,
+}>()
+
+watch(rangeMinDate, d => setTimeout(() => emit('rangeMinDate', d), 0), {immediate: true})
+watch(rangeMaxDate, d => setTimeout(() => emit('rangeMaxDate', d), 0), {immediate: true})
+watch(currentDate,  d => setTimeout(() => emit('currentDate', d), 0), {immediate: true})
+watch(live, l => emit('live', l), {immediate: true})
+
+// #region Computed values
+
+watch([startDate, endDate, rangeMinInternal], ([sD, eD, value]) => {
+    rangeMinDate.value = calculateDatetime(sD, eD, value)
+}, { immediate: true, })
+
+watch([startDate, endDate, rangeMaxInternal], ([sD, eD, value]) => {
+    rangeMaxDate.value = calculateDatetime(sD, eD, value)
+}, { immediate: true, })
+
+watch([startDate, endDate, currentInternal], ([sD, eD, value]) => {
+    currentDate.value = calculateDatetime(sD, eD, value)
+}, { immediate: true, })
+
+const startDateFormatted = computed(() => formatDate(rangeMinDate.value, 'HH:mm:ss DD.MM.YYYY'))
+const endDateFormatted = computed(() => formatDate(rangeMaxDate.value, 'HH:mm:ss DD.MM.YYYY'))
+const currentDateFormatted = computed(() => formatDate(currentDate.value, 'HH:mm:ss DD.MM.YYYY'))
+
+const liveEnabled = computed(() => endDate.value.getTime() > Date.now())
+
+// #endregion
+
+//#region Time advancing
+
+// Offset of the current marker to now. This will be used to
+// keep the scrubber at a constant offset to this time. This
+// is better than trying to figure out how much time has passed
+// between the frames, as this avoids rounding errors and ensures
+// 1. That time is actually advancing at real speed
+// 2. That the offset will stay the same event if the time cannot due to the end being reached
+// Note: positive for values before now
+let timeOffsetCurrent = 0
+let timeOffsetMinRange = 0
+let timeOffsetMaxRange = 0
+
+function setTimeOffset() {
+    timeOffsetCurrent = Date.now() - currentDate.value.getTime()
+    timeOffsetMinRange = Date.now() - rangeMinDate.value.getTime()
+    timeOffsetMaxRange = Date.now() - rangeMaxDate.value.getTime()
+}
+
+setTimeOffset()
+
+function play(_: any) {
+
+    advanceTime()
+
+    if (!destroyed.value)
+        requestAnimationFrame(play)
+}
+
+let timeOfLastAdvance: number | undefined = undefined
+
+function advanceTime() {
+
+    if (displayCurrentPreview.value)
+        return
+
+    const previousTime = timeOfLastAdvance
+    timeOfLastAdvance = Date.now()
+
+    if (!previousTime && speed.value !== 1)
+        return
+
+    const timeStep = (timeOfLastAdvance - (previousTime ?? 0)) * speed.value
+
+    const newTime = speed.value === 1 ?
+        Date.now() - timeOffsetCurrent
+        : currentDate.value.getTime() + timeStep
+
+    const nextDate = calculateRelative(startDate.value, endDate.value, new Date(newTime))
+
+    if (playing.value && nextDate < rangeMaxInternal.value && nextDate <= 1) {
+        currentInternal.value = nextDate
+    }
+
+    const nextRangeMin = calculateRelative(startDate.value, endDate.value, new Date(Date.now() - timeOffsetMinRange))
+    const nextRangeMax = calculateRelative(startDate.value, endDate.value, new Date(Date.now() - timeOffsetMaxRange))
+
+    if (live.value && nextRangeMin <= currentInternal.value)
+        rangeMinInternal.value = nextRangeMin
+
+    if (live.value && nextRangeMax <= 1)
+        rangeMaxInternal.value = nextRangeMax
+}
+
+function calculateDatetime(startDate: Date, endDate: Date, relativeValue: number) {
+    const range = endDate.getTime() - startDate.getTime()
+
+    return new Date(startDate.getTime() + (range * relativeValue))
+}
+
+function calculateRelative(startDate: Date, endDate: Date, date: Date) {
+    const range = endDate.getTime() - startDate.getTime()
+    const timeSinceStart = date.getTime() - startDate.getTime()
+    return timeSinceStart / range
+}
+
+/**
+ * Figures out where along the playbar the given
+ * position is in percent. Values get clamped between 0 and 1
+ * 
+ * @param xPosition the pixel value to calculate the relative position for
+ */
+function getRelativeTimelinePosition(xPosition: number) {
+    const boundingBox = containerRef.value.getBoundingClientRect() as DOMRect
+
+    const width = boundingBox.width; // The overall width of the slider
+    const left = xPosition - boundingBox.x; // The distance between the mouse and the left side of the slider
+
+    let percentage = left / width
+    if (percentage > 1)
+        percentage = 1
+    if (percentage < 0)
+        percentage = 0
+    return percentage;
+}
+
+//#endregion
+
+// #region UI events
+
+
+
+function onMouseMove($event: TouchOrMouseEvent){
+    onDragMin($event)
+    onDragMax($event)
+    onDragCur($event)
+}
+
+function onMouseUp($event: TouchOrMouseEvent){
+    onDragMinEnd($event)
+    onDragMaxEnd($event)
+    onDragCurEnd($event)
+}
+
+window.addEventListener('mousemove', onMouseMove)
+window.addEventListener('mouseup', onMouseUp)
+
+// window.addEventListener('mousedown', () => console.log('onmousedown'))
+
+// window.addEventListener('mousemove', () => console.log('onmouse'))
+// window.addEventListener('mouseup', () => console.log('onmouseup'))
+
+window.addEventListener('touchmove', onMouseMove)
+window.addEventListener('touchend', onMouseUp)
+window.addEventListener('touchcancel', onMouseUp)
+
+
+function onPlay() {
+    playing.value = !playing.value;
+    setTimeOffset()
+}
+
+function onLive() {
+
+    live.value = !live.value
+    
+    if(live.value){
+        const now = new Date(Date.now())
+        currentInternal.value = calculateRelative(startDate.value, endDate.value, now)
+        currentDate.value = now
+        rangeMaxInternal.value = 1
+        rangeMaxDate.value = calculateDatetime(startDate.value, endDate.value, 1)
+        const newMin = currentInternal.value - 0.1
+        rangeMinInternal.value = newMin > 0 ? newMin : 0
+        rangeMinDate.value = calculateDatetime(startDate.value, endDate.value, newMin > 0 ? newMin : 0)
+        playing.value = true
+        speed.value = 1
+    }
+
+    setTimeOffset()
+}
+function onDragMinStart($event: TouchOrMouseEvent) {
+
+
+    displayMinPreview.value++
+    draggingRangeMin.value = true
+}
+function onDragMin($event: TouchOrMouseEvent) {
+    if(!draggingRangeMin.value)
+        return
+    dragMin($event)
+}
+function onDragMinEnd($event: TouchOrMouseEvent) {
+    if(!draggingRangeMin.value)
+        return
+    displayMinPreview.value--
+    draggingRangeMin.value = false
+    dragMin($event)
+}
+function onDragMaxStart($event: TouchOrMouseEvent) {
+    displayMaxPreview.value++
+    draggingRangeMax.value = true
+}
+function onDragMax($event: TouchOrMouseEvent) {
+    if(!draggingRangeMax.value)
+        return
+    dragMax($event)
+}
+function onDragMaxEnd($event: TouchOrMouseEvent) {
+    if(!draggingRangeMax.value)
+        return
+    displayMaxPreview.value--
+    draggingRangeMax.value = false
+    dragMax($event)
+}
+
+function onDragCurStart($event: TouchOrMouseEvent) {
+    displayCurrentPreview.value++
+    draggingCurrent.value = true
+}
+function onDragCur($event: TouchOrMouseEvent) {
+    if(!draggingCurrent.value)
+        return
+    dragCurrent($event)
+}
+function onDragCurEnd($event: TouchOrMouseEvent) {
+    if(!draggingCurrent.value)
+        return
+    displayCurrentPreview.value--
+    draggingCurrent.value = false
+    dragCurrent($event)
+}
+
+//#endregion
+
+// #region Dragging handlers
+
+function dragMin($event: TouchOrMouseEvent) {
+
+    if (!containerRef.value)
+        return
+
+    const positionX = isTouchEvent($event) ? $event.touches?.[0]?.pageX : $event.pageX
+
+    if(!positionX)
+        return
+
+    let percentage = getRelativeTimelinePosition(positionX)
+
+    if (percentage > rangeMaxInternal.value)
+        percentage = rangeMaxInternal.value
+
+    rangeMinInternal.value = percentage
+    if (currentInternal.value < percentage)
+        currentInternal.value = percentage
+
+    setTimeOffset()
+}
+
+function dragCurrent($event: TouchOrMouseEvent) {
+
+    if (!containerRef.value)
+        return
+
+    const positionX = isTouchEvent($event) ? $event.touches?.[0]?.pageX : $event.pageX
+
+    if(!positionX)
+        return
+
+    // Fixes bug of elements snapping bag to the start
+    // if ($event.x <= 0)
+    //     return
+
+    const percentage = getRelativeTimelinePosition(positionX)
+
+    currentInternal.value = percentage
+    if (rangeMinInternal.value > percentage)
+        rangeMinInternal.value = percentage
+    if (rangeMaxInternal.value < percentage)
+        rangeMaxInternal.value = percentage
+
+    setTimeOffset()
+}
+
+function dragMax($event: TouchOrMouseEvent) {
+
+    if (!containerRef.value)
+        return
+
+    const positionX = isTouchEvent($event) ? $event.touches?.[0]?.pageX : $event.pageX
+
+    if(!positionX)
+        return
+
+    let percentage = getRelativeTimelinePosition(positionX)
+
+    if (percentage < rangeMinInternal.value)
+        percentage = rangeMinInternal.value
+
+    rangeMaxInternal.value = percentage
+    if (currentInternal.value > percentage)
+        currentInternal.value = percentage
+
+    setTimeOffset()
+}
+
+//#endregion
+
+//#region Lifetime
+
+requestAnimationFrame(play)
+
+onUnmounted(() => {
+    destroyed.value = true
+})
+
+//#endregion
+
+</script>
+

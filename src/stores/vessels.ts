@@ -66,12 +66,14 @@ function shouldRequest(l: LoadingStates){
 export type Vessel = {
   _id: string;
   name: string;
+  _version: number;
   parts: VesselPart[];
 }
 
 export type VesselPart = {
 
   _id: string;
+
 
   name: string;
 

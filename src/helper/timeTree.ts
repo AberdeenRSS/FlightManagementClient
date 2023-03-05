@@ -342,21 +342,34 @@ export function insertValue<TLeafData extends TimeTreeData, TOwnData extends Tim
     insertValue(member, value, maybeAggregationLevel)
 }
 
-export function getValues<TLeafData extends TimeTreeData, TOwnData extends TimeTreeData | never>(node: TimeTreeNode<TLeafData, TOwnData>, start: Date, end: Date, aggregationLevel: AggregationLevels): TOwnData[];
+export function getValues<TLeafData extends TimeTreeData, TOwnData extends TimeTreeData | never>(node: TimeTreeNode<TLeafData, TOwnData>, start: Date, end: Date, keepQuerying: boolean, aggregationLevel: AggregationLevels): TOwnData[];
 export function getValues<TLeafData extends TimeTreeData, TOwnData extends TimeTreeData | never>(node: TimeTreeNode<TLeafData, TOwnData>, start: Date, end: Date): TLeafData[];
-export function getValues<TLeafData extends TimeTreeData, TOwnData extends TimeTreeData | never>(node: TimeTreeNode<TLeafData, TOwnData>, start: Date, end: Date, aggregationLevel?: AggregationLevels): (TLeafData | TOwnData)[];
+export function getValues<TLeafData extends TimeTreeData, TOwnData extends TimeTreeData | never>(node: TimeTreeNode<TLeafData, TOwnData>, start: Date, end: Date, keepQuerying?: boolean, aggregationLevel?: AggregationLevels): (TLeafData | TOwnData)[];
 
-export function getValues<TLeafData extends TimeTreeData, TOwnData extends TimeTreeData | never>(node: TimeTreeNode<TLeafData, TOwnData>, start: Date, end: Date, aggregationLevel?: AggregationLevels): (TLeafData | TOwnData)[]{
+export function getValues<TLeafData extends TimeTreeData, TOwnData extends TimeTreeData | never>(node: TimeTreeNode<TLeafData, TOwnData>, start: Date, end: Date, keepQuerying?: boolean, aggregationLevel?: AggregationLevels): (TLeafData | TOwnData)[]{
      
     
-    // Stop allocating if this is the requested or maximum level to allocate to
-    if(!aggregationLevel && node.aggregationLevel === DECISECOND)
+    if((!aggregationLevel && node.aggregationLevel === DECISECOND))
         return Object.keys(node.members).map(k => node.members[k] as TLeafData).sort((a, b) => a.getDateTime().getTime() - b.getDateTime().getTime())
     
     const nodeAggregationLevelIndex = aggregationLevelReverseMap[node.aggregationLevel]
+    const aggregationLevelIndex = aggregationLevel ? aggregationLevelReverseMap[aggregationLevel] : -1
 
-    if(node.aggregationLevel === aggregationLevel)
-        return node.ownMeasurementValue ? [node.ownMeasurementValue] : []
+    // If the desired aggregation level is reached, return the value if it's present
+    // If there is no value and keepQuerying is true, than search in the child nodes
+    // for values
+    if(nodeAggregationLevelIndex <= aggregationLevelIndex)
+    {
+        if(!keepQuerying)    
+            return node.ownMeasurementValue ? [node.ownMeasurementValue] : []
+
+        if(node.ownMeasurementValue)
+            return [node.ownMeasurementValue]
+
+        if(node.aggregationLevel === 'decisecond')
+            return Object.keys(node.members).map(k => node.members[k] as TLeafData).sort((a, b) => a.getDateTime().getTime() - b.getDateTime().getTime())
+
+    }
 
     const nextAggregationLevel = AggregationLevelMap[nodeAggregationLevelIndex-1] as Exclude<AggregationLevels, typeof ETERNITY>
     const nodeTimeSpan = getNodeTimeSpan(node)
@@ -374,7 +387,54 @@ export function getValues<TLeafData extends TimeTreeData, TOwnData extends TimeT
         if(!member)
             return []
 
-        return getValues(member, start, end, aggregationLevel)
+        return getValues(member, start, end, keepQuerying, aggregationLevel)
     }).flat()
 }
+
+export function getClosest<TLeafData extends TimeTreeData, TOwnData extends TimeTreeData | never>(node: TimeTreeNode<TLeafData, TOwnData>, date: Date, aggregationLevel?: AggregationLevels): (TLeafData | TOwnData | undefined){
+     
+    
+    if(!aggregationLevel && node.aggregationLevel === DECISECOND){
+
+        const sortedMembers = Object.keys(node.members)
+            .sort()
+            .reverse()
+            .map(k => node.members[k] as TLeafData)
+            // .sort((a, b) => (a.getDateTime().getTime() - date.getTime()) - (b.getDateTime().getTime() - date.getTime()))
+
+        return sortedMembers.length > 0 ? sortedMembers[0] : undefined
+    }
+    
+    const nodeAggregationLevelIndex = aggregationLevelReverseMap[node.aggregationLevel]
+
+    if(node.aggregationLevel === aggregationLevel)
+        return node.ownMeasurementValue ? node.ownMeasurementValue : undefined
+
+    const memberKeys = Object.keys(node.members).sort().reverse()
+    
+
+    const result: (TLeafData | TOwnData | undefined) = undefined
+    let i = memberKeys.length-1
+
+    while(i > -1 && result === undefined){
+
+        const member = node.members[memberKeys[i]] as TimeTreeNode<TLeafData, TOwnData>
+        i--
+
+        if(!member)
+            continue
+
+        const potentialResult = getClosest(member, date, aggregationLevel)
+
+        if(!potentialResult)
+            continue
+
+        return potentialResult;
+
+    }
+
+    return undefined
+}
+
+
 

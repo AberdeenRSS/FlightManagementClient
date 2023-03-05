@@ -3,22 +3,27 @@
     <v-table>
         <thead>
             <tr>
-                <th class="text-left">
-                    Id
-                </th>
+
                 <th class="text-left">
                     Name
                 </th>
-                <th>
-
+                <th class="text-left">
+                    Version
+                </th>
+                <th class="text-left">
+                    Num. Parts
+                </th>
+                <th class="text-left">
                 </th>
             </tr>
         </thead>
         <tbody>
             <tr v-for="(item, key) in vesselStore.vessels" :key="key">
-                <td>{{ item.entity!._id }}</td>
-                <td>{{ item.entity!.name }}</td>
-                <td><v-btn @click="router.push(`./vessel/details/${item.entity!._id}`)">Details</v-btn></td>
+                <td><b>{{ item.entity!.name }}</b></td>
+                <td>{{ item.entity!._version }}</td>
+                <td>{{ item.entity!.parts.length }}</td>
+
+                <td><v-btn @click="router.push(`./vessel/details/${item.entity!._id}`)">Flights</v-btn></td>
             </tr>
         </tbody>
     </v-table>

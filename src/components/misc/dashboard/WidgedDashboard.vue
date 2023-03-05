@@ -37,7 +37,7 @@ const { store, putWidget, addWidget, tryGetWidget, evaluateCollide, resetCollide
 
 const tileSize = computed(() => (100 - margin * 2) / store.value.cols)
 
-store.value.rows = 3
+store.value.rows = 6
 store.value.cols = 6
 initMatrix()
 
@@ -47,7 +47,7 @@ Object.keys(passedSlots).forEach(k => {
 
     const slot = passedSlots[k]
 
-    const widget: Widget = { sizeX: 2, sizeY: 2, id: k, badSize: false } 
+    const widget: Widget = { sizeX: 2, sizeY: 2, id: k, badSize: false, data: {} } 
     store.value.widgets.push(widget)
 
     putWidget(store.value.matrix[0][i*2], widget)
@@ -110,7 +110,7 @@ function onDragenter(event: DragEvent, item: WidgetSlot) {
 }
 
 function onAddWidget(col: WidgetSlot){
-    addWidget(col, {sizeX: 1, sizeY: 1, id: v4(), badSize: false})
+    addWidget(col, {sizeX: 1, sizeY: 1, id: v4(), badSize: false, data: {}})
 }
 
 </script>

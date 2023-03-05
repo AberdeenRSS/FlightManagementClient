@@ -18,8 +18,13 @@ const router = createRouter({
       path: '/flight/:vessel_id/:id',
       name: 'Flight',
       component: () => import('../views/FlightView.vue')
+    },
+    {
+      path: '/about',
+      name: 'About',
+      component: () => import('../views/AboutView.vue')
     }
-  ]
+  ],
 })
 
 export default router

@@ -1,13 +1,14 @@
-export interface FlightDataConfig<T> {
+import type { MeasurementTypes } from "@/stores/flight_data"
+import { rgb } from "color"
+
+export interface FlightDataConfig<T extends MeasurementTypes> {
 
     seriesName: string
 
-}
+    statusColor?: (value: T) => string 
 
-export interface FlightDataStatusConfig<T> {
-    statusColor: (value: T) => string 
+    statusText?: (value: T) => string
 
-    statusText: (value: T) => string
 }
 
 export interface ComponentDefinition {
@@ -17,22 +18,28 @@ export interface ComponentDefinition {
 
     iconId: string
 
-    flightDataConfig: {[seriesName: string]: FlightDataConfig<any> | (FlightDataConfig<any> & FlightDataStatusConfig<any>)}
+    flightDataConfig: {[seriesName: string]: FlightDataConfig<any>}
 }
 
 const configurations: {[id: string]: ComponentDefinition} = {
-    'sensor.accelerometer': {
-        type: 'sensor.accelerometer',
+    'Sensor.Accelerometer': {
+        type: 'Sensor.Accelerometer',
         typeName: 'Accelerometer',
-        iconId: 'mdi-',
+        iconId: 'mdi-chip',
         flightDataConfig: {
             'acceleration-x': {
-                seriesName: 'Acceleration X'
+                seriesName: 'Acceleration X',
+                statusColor(value: number) {
+                    return rgb(255, 255, value).hex()
+                },
+                statusText(value: number){
+                    return value.toPrecision(3)
+                }
             },
-            'status': {
+            'state': {
                 seriesName: 'Status',
                 statusColor(value: string) {
-                    if (value === 'active')
+                    if (value === 'Active')
                         return '#00dd00'
                     return '#ff0000'
                 },

@@ -23,6 +23,10 @@ const props = defineProps({
     modelValue: {
         type: Object,
         required: true
+    },
+    filter: {
+        type: Array,
+        required: false
     }
 });
 
@@ -30,7 +34,7 @@ const emit = defineEmits<{
     (event: 'update:modelValue', selectedParts: { [id: string]: boolean }): void
 }>()
 
-const { vesselId, modelValue } = toRefs(props)
+const { vesselId, modelValue, filter } = toRefs(props)
 
 // Own state
 const selectedParts = ref({} as { [id: string]: boolean })
@@ -66,7 +70,17 @@ onMounted(() => {
             {
                 selector: 'node',
                 style: {
-                    'background-color': (n) => {
+                    'background-color': function (n) {
+
+                        const id = n.data('id') as string | undefined
+
+                        const curFilter = cy.data('filter') as string[]
+
+                        // If there is a filter applied (and it has values) check if the
+                        // component appears in the filters, if not show it as grey
+                        if (curFilter && curFilter.length > 0 && !curFilter.some(f => f == id))
+                            return '#666'
+
                         const type = (n.data('type') as string | undefined);
 
                         if (!type)
@@ -108,6 +122,12 @@ onMounted(() => {
 
     });
 
+    if (filter) {
+        watch(filter, f => {
+            cy.data('filter', f)
+        }, { immediate: true, deep: true })
+    }
+
 
     watch(vesselRaw, v => {
         if (!v)
@@ -118,7 +138,7 @@ onMounted(() => {
         if (oldVessel)
             cy.remove(oldVessel)
 
-        oldVessel = cy.add({ data: { id: v._id, name: v.name, dom: virtualComp.value }, group: 'nodes' })
+        oldVessel = cy.add({ data: { id: v._id, name: v.name, dom: virtualComp.value, isVessel: true }, group: 'nodes' })
 
         cy.center()
 
@@ -161,7 +181,7 @@ onMounted(() => {
 
     watch([modelValue, cyElements], ([selected, elems]) => {
 
-        if(!elems)
+        if (!elems)
             return
 
         elems.forEach(elem => {
@@ -171,7 +191,30 @@ onMounted(() => {
                 elem.unselect()
         })
 
-    }, {immediate: true})
+    }, { immediate: true })
+
+    if (filter) {
+        watch([filter], ([f]) => {
+
+            const elems = cyElements.value
+
+            if (!elems)
+                return
+
+            elems.forEach(elem => {
+
+                if (f && f.length > 0 && !f.some(v => v === elem.id())) {
+                    elem.unselectify()
+                }
+                else {
+                    elem.selectify()
+                }
+
+            })
+
+        }, { immediate: true, deep: true })
+    }
+
 
 })
 

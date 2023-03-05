@@ -1,14 +1,13 @@
 <template>
-    <div>
-        <div class="text-h5">Flights</div>
+    <div style="width: 100%;">
         <v-table>
             <thead>
                 <tr>
                     <th class="text-left">
-                        Id
+                        Flight Name
                     </th>
                     <th class="text-left">
-                        Name
+                        Date/Time
                     </th>
                     <th>
 
@@ -16,9 +15,10 @@
                 </tr>
             </thead>
             <tbody>
-                <tr v-for="(item, key) in flights" :key="key">
-                    <td>{{ item.flight!._id }}</td>
+                <tr v-for="item in flightsSorted" :key="item.flight._id">
                     <td>{{ item.flight!.name }}</td>
+                    <td>{{new Date(Date.parse(item.flight!.start)).toLocaleDateString()}} {{  new Date(Date.parse(item.flight!.start)).toLocaleTimeString() }}</td>
+
                     <td><v-btn @click="router.push(`/flight/${item.flight._vessel_id}/${item.flight!._id}`)">Details</v-btn></td>
                 </tr>
             </tbody>
@@ -48,6 +48,8 @@ const router = useRouter()
 flightStore.fetchFlightsForVesselIfNecessary($vesselId)
 
 const flights = computed(() => flightStore.vesselFlights[$vesselId].flights)
+
+const flightsSorted = computed(() => Object.keys(flights.value).map(k => flights.value[k]).sort((a, b) => Date.parse(b.flight.start) - Date.parse(a.flight.start) ))
 
 
 </script>
