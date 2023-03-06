@@ -8,7 +8,7 @@
 
 <script lang="ts" setup>
 import { computed, ref, toRefs, type VNode, type VNodeRef,  watch, type WatchStopHandle, provide } from 'vue';
-import { DASHBOARD_WIDGET_ID } from './DashboardComposable';
+import { DASHBOARD_ID, DASHBOARD_WIDGET_ID } from './DashboardComposable';
 
 const slotContent = ref<VNodeRef | null>(null)
 
@@ -53,6 +53,7 @@ const emit = defineEmits<{
 
 const { gridColumns, gridMargin, id, dashboardId } = toRefs(props)
 
+provide(DASHBOARD_ID, dashboardId.value)
 provide(DASHBOARD_WIDGET_ID, [dashboardId.value, id.value])
 
 const requestSizeX = ref(1)

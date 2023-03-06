@@ -4,7 +4,7 @@
 
             <div style="height: 100%;" class="card-body">
 
-                <div v-if="inSettings" style="height: 100%; width: 100%;">
+                <div v-if="widgetData.inSettings" style="height: 100%; width: 100%;">
 
                     <div class="d-flex flex-column" style="height: 100%;">
 
@@ -18,7 +18,7 @@
                         </span>
 
                         <div v-if="selectedTab === 'Select View'" class="settings-item">
-                            <v-select density="compact" label="View" v-model="selectedView" :items="views"></v-select>
+                            <v-select density="compact" label="View" v-model="widgetData.selectedView" :items="views"></v-select>
                         </div>
 
                         <div v-if="selectedTab === 'Select Part'" class="settings-item">
@@ -35,25 +35,25 @@
                         </div>
                         <v-btn v-if="selectedTab === 'General'" color="error" @click="deleteWidget()">Delete</v-btn>
 
-                        <v-btn variant="outlined" @click="inSettings = false">Done</v-btn>
+                        <v-btn variant="outlined" @click="widgetData.inSettings = false">Done</v-btn>
 
                     </div>
 
                 </div>
 
-                <div v-if="!inSettings" class="d-flex flex-column" style="height: 100%;">
+                <div v-if="!widgetData.inSettings" class="d-flex flex-column" style="height: 100%;">
 
-                    <div v-if="!inSettings" class="d-flex justify-space-between align-center">
-                        <v-btn v-if="!inSettings" icon="mdi-cog-outline" variant="plain" @click="inSettings = true"></v-btn>
+                    <div v-if="!widgetData.inSettings" class="d-flex justify-space-between align-center">
+                        <v-btn v-if="!widgetData.inSettings" icon="mdi-cog-outline" variant="plain" @click="widgetData.inSettings = true"></v-btn>
                         <div>{{ title }}</div>
                         <div><v-icon :icon="relevantConfiguration?.iconId ?? 'mdi-checkbox-blank'"></v-icon></div>
                     </div>
 
-                    <div class="flex-grow-1" v-if="selectedView === 'Graph'">
+                    <div class="flex-grow-1" v-if="widgetData.selectedView === 'Graph'">
                         <SimpleFlightDataChart></SimpleFlightDataChart>
                     </div>
 
-                    <div class="flex-grow-1" v-if="selectedView === 'Status'">
+                    <div class="flex-grow-1" v-if="widgetData.selectedView === 'Status'">
                         <FlightStatus></FlightStatus>
                     </div>
 
@@ -109,13 +109,13 @@ import DashboardResizer from '@/components/misc/dashboard/DashboardResizer.vue'
 import { computed, inject, ref, watch, type Ref } from 'vue';
 import { toRefs, toRef } from 'vue';
 import { DASHBOARD_WIDGET_ID, useDashboardWidgetStore } from '../misc/dashboard/DashboardComposable';
-import SimpleFlightDataChart from './SimpleFlightDataChart.vue'
-import FlightStatusSettings from './FlightStatusSettings.vue';
-import FlightStatus from './FlightStatus.vue'
+import SimpleFlightDataChart from '../flight_data/SimpleFlightDataChart.vue'
+import FlightStatusSettings from '../flight_data/FlightStatusSettings.vue';
+import FlightStatus from '../flight_data/FlightStatus.vue'
 import { useFlightDataStore } from '@/stores/flight_data'
 import { throttledWatch, watchDebounced, watchThrottled } from '@vueuse/shared';
 import { useVesselStore } from '@/stores/vessels';
-import { useSelectedPart, useWidgetData, type FlightDashboardWidgetData } from './flightDashboardElemStoreTypes';
+import { useSelectedPart, useWidgetData, type FlightDashboardWidgetData } from '../flight_data/flightDashboardElemStoreTypes';
 import { useComponentConfiguration } from '@/composables/componentsConfiguration/componentConfiguration';
 import { useFlightViewState } from '@/composables/useFlightView';
 
@@ -128,12 +128,13 @@ const { deleteWidget } = useDashboardWidgetStore(dashboardWidgetId)
 
 const widgetData = useWidgetData(dashboardWidgetId)
 widgetData.value.selectedParts = widgetData.value.selectedParts ?? {}
+widgetData.value.selectedView = widgetData.value.selectedView ?? 'Graph'
+widgetData.value.inSettings = 'inSettings' in widgetData.value ? widgetData.value.inSettings : true
 
 const views = ['Graph', 'Status']
-const selectedView = ref('Graph')
 
-const baseViews = ['Select View', 'Select Part', 'General']
-const tabs = computed(() => selectedView.value === 'Status' ? [...baseViews, 'Status'] : baseViews)
+const baseTabs = ['Select View', 'Select Part', 'General']
+const tabs = computed(() => widgetData.value.selectedView=== 'Status' ? [...baseTabs, 'Status'] : baseTabs)
 const selectedTab = ref<string>('Select View')
 
 const size = ref({ x: 2, y: 2 })
@@ -154,8 +155,6 @@ const selectedPart = computed(() => vessel.value?.parts.find(p => p._id === sele
 
 const { configurations } = useComponentConfiguration()
 const relevantConfiguration = computed(() => selectedPartId.value && selectedPart.value ? configurations[selectedPart.value?.part_type] : undefined)
-
-const inSettings = ref(true)
 
 subscribeRealtime(flightId.value)
 

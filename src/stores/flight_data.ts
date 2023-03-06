@@ -1,6 +1,6 @@
 import { fetchRssApi, useRssWebSocket } from '@/composables/api/rssFlightServerApi';
 import { defineStore } from 'pinia'
-import { computed, reactive, ref, shallowRef, watch, type Ref } from 'vue';
+import { computed, reactive, ref, shallowRef, triggerRef, watch, type Ref } from 'vue';
 import { waitUntil } from '@/helper/reactivity'
 import { until, type UseFetchReturn } from '@vueuse/core';
 import type { LoadingStates } from '@/helper/loadingStates';
@@ -14,7 +14,6 @@ function getMeasurementRequestUrl(flightId: string, vesselPart: string, start: D
 }
 
 const store = shallowRef({
-    version: 0,
     flight_data: {} as { [index: string]: FlightDataState },
     realtimeSubscription: false
 })
@@ -43,7 +42,7 @@ async function fetchFlightDataInTimeFrame(flightId: string, vesselPart: string, 
 
     const thisFlightData = getOrInitStore(flightId, vesselPart)
 
-    const rangesToLoad = getMissingRangesRecursive(thisFlightData.measurements, start, end, resolution == 'smallest' ? 'decisecond' : resolution, true)
+    const rangesToLoad = getMissingRangesRecursive(thisFlightData.measurements, start, end, resolution, true)
 
     if (rangesToLoad.length < 1)
         return
@@ -65,7 +64,7 @@ async function fetchFlightDataInTimeFrame(flightId: string, vesselPart: string, 
 
     integrateData(newData, thisFlightData, resolution);
 
-    store.value.version++
+    triggerRef(store)
 
 }
 
@@ -103,7 +102,7 @@ async function subscribeRealtime(flightId: string) {
                 insertValue(flightData.measurements, asTimeData)
             })
 
-            store.value.version++
+            triggerRef(store)
 
         })
 

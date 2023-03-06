@@ -1,5 +1,5 @@
 <template>
-    <v-btn v-if="!loading" size="medium" :disabled="!command" variant="outlined" color="error" @click="onDispatchCommand">Send</v-btn>
+    <v-btn v-if="!loading" size="medium" :disabled="!commandType || !part" variant="outlined" color="error" @click="onDispatchCommand">Send</v-btn>
 
     <v-progress-circular v-if="loading" indeterminate color="primary"></v-progress-circular>
 
@@ -17,15 +17,21 @@
 import { useFlightViewState } from '@/composables/useFlightView';
 import { waitUntil } from '@/helper/reactivity';
 import { useCommandStore, type Command } from '@/stores/commands';
+import { v4 } from 'uuid';
 import { defineProps, ref, toRefs, watch, type Ref } from 'vue';
 
 const props = defineProps({
-    command: {
-        type: Object,
+    commandType: {
+        type: String,
+        default: undefined
+    },
+    part: {
+        type: String,
+        default: undefined
     }
 })
 
-const { command } = toRefs(props)
+const { commandType, part } = toRefs(props)
 
 const { vesselId, flightId, timeRange } = useFlightViewState()
 
@@ -36,7 +42,16 @@ const loading = ref<boolean>(false)
 const error = ref<undefined | string>()
 
 async function onDispatchCommand() {
-    const request = dispatchCommand(flightId.value, command!.value! as Command)
+
+    const command =  ({
+        _id: v4(),
+        _command_type: commandType!.value,
+        _part_id: part!.value,
+        create_time: new Date(Date.now()),
+        state: 'new',
+    } as Command)
+
+    const request = dispatchCommand(flightId.value, command)
 
     loading.value = true
 

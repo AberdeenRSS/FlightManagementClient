@@ -18,7 +18,7 @@
             </div>
         </v-menu>
 
-        <CommandDispatchButton :command="command"></CommandDispatchButton>
+        <CommandDispatchButton :command-type="selectedCommandType" :part="selectedPart?._id"></CommandDispatchButton>
         <!-- <v-btn variant="plain" size="small" :icon="cmdExpanded ? 'mdi-menu-down' : 'mdi-menu-up'"
             @click="cmdExpanded = !cmdExpanded"></v-btn> -->
     </div>
@@ -84,7 +84,6 @@ const availableCommands = ref<string[]>([])
 
 const selectedCommandType = ref<string | undefined>(undefined)
 
-const command = ref<Command | undefined>()
 
 const componentFilter = ref<string[]>([])
 
@@ -119,15 +118,6 @@ watch(selected, s => {
         selectedPartId.value = keys[0]
 }, {immediate: true, deep: true})
 
-watch([selectedCommandType, selectedPartId], ([commandType, part]) => {
-    command.value = commandType && part ? ({
-        _id: v4(),
-        _command_type: commandType,
-        _part_id: part,
-        create_time: new Date(Date.now()),
-        state: 'new',
-    } as Command) : undefined
-}, { immediate: true })
 
 </script>
 

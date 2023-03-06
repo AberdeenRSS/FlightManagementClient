@@ -1,26 +1,17 @@
 <template>
     <div class="dashboard-container">
 
-        <WidgetDashboard>
+        <WidgetDashboard v-if="dashboardId" :dashboard-id="dashboardId">
             <VesselComponentDashboardElem>
 
             </VesselComponentDashboardElem>
-            <!-- <template v-slot:Preview>
-            <v-card height="100%" width="100%">
-                <VesselComponentDashboardElem v-if="selected">
-                    <SimpleFlightDataChart :vessel-id="vessel_id" :flight-id="id" :vessel-part-id="selected">
-                    </SimpleFlightDataChart>
-
-                </VesselComponentDashboardElem>
-            </v-card>
-        </template> -->
         </WidgetDashboard>
     </div>
 
 
     <div class="playbar-drawer">
         <CommandDispatchBar v-if="extraView === 'command'" :vessel-id="vessel_id" :flight-id="id"></CommandDispatchBar>
-        <!-- <DashboardSaver v-if="extraView === 'dashboard'" :dashboard-id="dashboardId"></DashboardSaver> -->
+        <DashboardSaver v-if="extraView === 'dashboard'" v-model="dashboardId"></DashboardSaver>
         <AdvancedDatetimeSelector :start-date="startTime" :end-date="endTime" @current-date="currentDate = $event"
             @range-min-date="rangeMinDate = $event" @range-max-date="rangeMaxDate = $event" @live="$event => live = $event">
 
@@ -104,7 +95,7 @@
 import { useRoute } from 'vue-router';
 import { useFlightStore } from '@/stores/flight';
 import { computed, ref, watch } from 'vue';
-import VesselComponentDashboardElem from '@/components/flight_data/VesselComponentDashboardElem.vue';
+import VesselComponentDashboardElem from '@/components/FlightDashboardElem/VesselComponentDashboardElem.vue';
 import DashboardSaver from '@/components/misc/dashboard/DashboardSaver.vue';
 
 import WidgetDashboard from '@/components/misc/dashboard/WidgedDashboard.vue'
@@ -114,12 +105,17 @@ import { useFlightViewState, useProvideFlightView, type TimeRange } from '@/comp
 import { useCommandStore } from '@/stores/commands';
 import { watchDebounced, watchThrottled } from '@vueuse/shared';
 import type { AggregationLevels } from '@/helper/timeTree';
+import { useDashboardPersistStore } from '@/components/misc/dashboard/DashboardComposable';
+import { v4 } from 'uuid';
 
 const route = useRoute()
 const vessel_id = route.params.vessel_id as string
 const id = route.params.id as string
 
-const dashboardId = ref<string>('')
+const {availableDashboards, loadDashboardIndicesFromStorage, tryLoadDashboardFromStorage} = useDashboardPersistStore()
+
+loadDashboardIndicesFromStorage()
+const dashboardId = ref<string>(availableDashboards.value.length > 0 ? (availableDashboards.value.find(v => v.isDefault)?.id ?? availableDashboards.value[0].id) : v4())
 
 const extraView = ref<undefined | 'command' | 'dashboard'>()
 
@@ -137,9 +133,9 @@ const resolutionTexts: { [P in AggregationLevels | 'smallest']?: string } = {
 
 const { setTimeRange, setFlightId, setVesselId, setLive, setResolution } = useProvideFlightView()
 
-const { resolution } = useFlightViewState()
+const { resolution, timeRange } = useFlightViewState()
 
-const { subscribeRealtime: subscribeRealtimeCommands } = useCommandStore()
+const { subscribeRealtime: subscribeRealtimeCommands, fetchCommandsInTimeFrame } = useCommandStore()
 
 setVesselId(vessel_id)
 setFlightId(id)
@@ -168,9 +164,15 @@ watchDebounced([rangeMinDate, rangeMaxDate, currentDate], ([start, end, cur]) =>
     selectedDatetime.value.cur = cur;
 
     //  = {start, end, cur};
-}, { immediate: true, debounce: 100, maxWait: 1000 })
+}, { immediate: true, debounce: 200, maxWait: 1000 })
 
 watch(selectedDatetime, setTimeRange, { immediate: true, deep: true })
+
+watch(timeRange, r => {
+
+    fetchCommandsInTimeFrame(id, r.start, r.end)
+
+}, {immediate: true, deep: true})
 
 subscribeRealtimeCommands(id)
 

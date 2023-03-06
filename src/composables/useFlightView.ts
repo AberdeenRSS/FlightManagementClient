@@ -7,7 +7,7 @@ const timeRange = ref<TimeRange>({ start: new Date(Date.now()), end: new Date(Da
 const vesselId = ref<string>('')
 const flightId = ref<string>('')
 const live = ref<boolean>(false)
-const resolution = ref<AggregationLevels | 'smallest'>('decisecond')
+const resolution = ref<AggregationLevels | 'smallest'>('minute')
 
 export function useFlightViewState() {
 

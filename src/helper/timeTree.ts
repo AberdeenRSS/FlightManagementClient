@@ -69,7 +69,7 @@ export type TimeTreeNode<TLeafData extends TimeTreeData, TOwnData extends TimeTr
     /**
      * Wether data for a given aggregation level was already requested
      */
-    requested: { [Level in (AggregationLevels | 'leaf')]?: boolean }
+    requested: { [Level in (AggregationLevels | 'smallest')]?: boolean }
 
 }
 
@@ -164,9 +164,9 @@ export function timeSpanFullyContained(timeSpanA: TimeSpan, timeSpanB: TimeSpan)
  * @param markLoaded Wether to modify the tree and mark the returned time
  * stamps as already loaded
  */
-export function getMissingRangesRecursive(node: TimeTreeNode<any, any>, start: Date, end: Date, level: AggregationLevels, markLoaded: boolean): TimeSpan[] {
+export function getMissingRangesRecursive(node: TimeTreeNode<any, any>, start: Date, end: Date, level: AggregationLevels | 'smallest', markLoaded: boolean): TimeSpan[] {
 
-    const aggregationLevelIndex = aggregationLevelReverseMap[level]
+    const aggregationLevelIndex = level != 'smallest' ? aggregationLevelReverseMap[level] : -1
     const nodeAggregationLevelIndex = aggregationLevelReverseMap[node.aggregationLevel]
 
     const nodeTimeSpan = getNodeTimeSpan(node)
@@ -321,7 +321,7 @@ export function insertValue<TLeafData extends TimeTreeData, TOwnData extends Tim
 
     if(!maybeAggregationLevel && node.aggregationLevel === DECISECOND){
         node.members[date.toISOString()] = value as TLeafData
-        node.requested['leaf'] = true
+        node.requested['smallest'] = true
         return
     }
 

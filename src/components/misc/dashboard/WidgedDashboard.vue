@@ -1,59 +1,63 @@
 <template>
-
-    <div class="drop-container">
+    <div v-if="store" class="drop-container">
         <div class="d-flex flex-row drop-row" v-for="row in store.matrix" :key="row[0].x">
             <div v-for="col in row" class="widget" :style="`width: ${tileSize}vw; height: ${tileSize}vw;`" :key="col.y"
-                @dragover="onDragover" @dragenter="onDragenter($event, col)" @dragleave="onDragleave($event, col)" @drop="onDrop($event, col)">
-                <DashboardElement v-if="!!col.element" :grid-columns="store.cols" :dashboard-id="dashboardID"
+                @dragover="onDragover" @dragenter="onDragenter($event, col)" @dragleave="onDragleave($event, col)"
+                @drop="onDrop($event, col)">
+                <DashboardElement v-if="!!col.element" :grid-columns="store.cols" :dashboard-id="dashboardId"
                     :size-x="col.element.sizeX" :size-y="col.element.sizeY" :grid-margin="margin" :id="col.element.id">
                     <slot :id="col.element.id"></slot>
                 </DashboardElement>
                 <div v-else class="widget-placeholder-container">
                     <div v-ripple :class="`widget-placeholder ${getHoverClass(col)}`" @click="onAddWidget(col)">
-                        <div class="show-on-hover add-button" ><v-icon icon="mdi-plus" size="x-large"></v-icon></div>
+                        <div class="show-on-hover add-button"><v-icon icon="mdi-plus" size="x-large"></v-icon></div>
                     </div>
                 </div>
             </div>
         </div>
-
     </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, toRefs, type Ref, useSlots, watch, provide } from 'vue';
+import { computed, ref, toRefs, type Ref, useSlots, watch, provide, onMounted, getCurrentInstance } from 'vue';
 import DashboardElement from './DashboardElement.vue'
 import { DASHBOARD_ID, useDashboardStore, type Widget, type WidgetMatrix, type WidgetSlot } from './DashboardComposable'
 import { v4 } from 'uuid'
 
 type HoverClasses = '' | 'hover-success' | 'hover-failure'
 
+const props = defineProps({
+    dashboardId: {
+        type: String,
+        required: true
+    }
+})
+
 const passedSlots = useSlots()
-const dashboardID = v4()
 const margin = 0
 
-provide(DASHBOARD_ID, dashboardID)
+const { dashboardId } = toRefs(props)
 
-const { store, putWidget, addWidget, tryGetWidget, evaluateCollide, resetCollide, getCurrentSlot, removeWidget, initMatrix  } = useDashboardStore(dashboardID)
+const { store, putWidget, addWidget, tryGetWidget, evaluateCollide, resetCollide, getCurrentSlot, removeWidget, initMatrix } = useDashboardStore(dashboardId)
+
+
+watch(store, s => {
+
+    if(!s)
+    return
+
+    if (!('matrix' in s))
+        initMatrix()
+    if (!('rows' in s))
+        store.value.rows = 6
+    if (!('cols' in s))
+        store.value.cols = 6
+
+}, { immediate: true })
+
 
 const tileSize = computed(() => (100 - margin * 2) / store.value.cols)
 
-store.value.rows = 6
-store.value.cols = 6
-initMatrix()
-
-
-let i = 0;
-Object.keys(passedSlots).forEach(k => {
-
-    const slot = passedSlots[k]
-
-    const widget: Widget = { sizeX: 2, sizeY: 2, id: k, badSize: false, data: {} } 
-    store.value.widgets.push(widget)
-
-    putWidget(store.value.matrix[0][i*2], widget)
-
-    i++;
-})
 
 
 function getHoverClass(item: WidgetSlot): HoverClasses {
@@ -77,7 +81,7 @@ function onDragleave(event: DragEvent, item: WidgetSlot) {
     evaluateCollide(item, widget, false)
 }
 
-function onDrop(event: DragEvent, item: WidgetSlot){
+function onDrop(event: DragEvent, item: WidgetSlot) {
 
     event.preventDefault()
 
@@ -85,7 +89,7 @@ function onDrop(event: DragEvent, item: WidgetSlot){
     if (!widget)
         return
 
-    if(!store.value.canDrop){
+    if (!store.value.canDrop) {
         resetCollide()
         return
     }
@@ -109,8 +113,8 @@ function onDragenter(event: DragEvent, item: WidgetSlot) {
     evaluateCollide(item, widget, true)
 }
 
-function onAddWidget(col: WidgetSlot){
-    addWidget(col, {sizeX: 1, sizeY: 1, id: v4(), badSize: false, data: {}})
+function onAddWidget(col: WidgetSlot) {
+    addWidget(col, { sizeX: 1, sizeY: 1, id: v4(), badSize: false, data: {} })
 }
 
 </script>
@@ -150,12 +154,12 @@ function onAddWidget(col: WidgetSlot){
     //     background-color: darken(lightgray, 40%);
     // }
 
-    &:hover > .show-on-hover{
+    &:hover>.show-on-hover {
         display: inherit;
     }
 }
 
-.show-on-hover{
+.show-on-hover {
     display: none;
 }
 

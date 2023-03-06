@@ -12,7 +12,7 @@
 <script setup lang="ts">
 import { fetchRssApi } from '@/composables/api/rssFlightServerApi';
 import { until, watchDebounced, watchThrottled } from '@vueuse/core';
-import { computed, onMounted, reactive, toRefs, watch, onUnmounted, ref, type Ref, type WatchStopHandle, inject } from 'vue';
+import { computed, onMounted, reactive, toRefs, watch, onUnmounted, ref, type Ref, type WatchStopHandle, inject, shallowRef, triggerRef } from 'vue';
 import bb, { line, scatter, zoom, type Chart } from "billboard.js";
 import { isAggregatedMeasurement, useFlightDataStore, type FlightDataChunk, type FlightDataChunkAggregated, type FlightDataState } from '@/stores/flight_data'
 import { useVesselStore } from '@/stores/vessels';
@@ -42,7 +42,7 @@ const getVessel = vesselStore.getVessel
 
 const part = computed(() => getVessel(vesselId.value)?.parts.find(p => p._id === vesselPartId.value))
 
-const data: Ref<FlightDataState | undefined> = ref(undefined)
+const data: Ref<FlightDataState | undefined> = shallowRef(undefined)
 
 watch([store$, flightId, vesselPartId], ([store, flight, part]) => {
 
@@ -50,6 +50,7 @@ watch([store$, flightId, vesselPartId], ([store, flight, part]) => {
 
     data.value = store.flight_data?.[id]
 
+    triggerRef(data)
 
 }, { immediate: true, deep: true})
 
@@ -167,10 +168,11 @@ onMounted(() => {
         if (!flightData)
             return
 
+            console.log('load data')
         loadChartData(chart, flightData, range, resolution, isLive)
 
 
-    }, { immediate: true, deep: true, debounce: 100, maxWait: 300 })
+    }, { immediate: true, deep: true, debounce: 200, maxWait: 500})
 
 })
 

@@ -1,21 +1,26 @@
 import { fetchRssApi, useRssWebSocket } from '@/composables/api/rssFlightServerApi';
 import { defineStore } from 'pinia'
-import { computed, reactive, ref, shallowRef, watch, type Ref } from 'vue';
+import { computed, reactive, ref, shallowRef, triggerRef, watch, type Ref } from 'vue';
 import { waitUntil } from '@/helper/reactivity'
 import { until, type UseFetchReturn } from '@vueuse/core';
 import type { LoadingStates } from '@/helper/loadingStates';
 import { allocateTimeTreeAtLevel, DECISECOND, ETERNITY, getMissingRangesRecursive, insertValue, type TimeTreeData, type TimeTreeNode } from '@/helper/timeTree';
 
-function getCommandsRequestUrl(flightId: string, vesselPart: string, start: Date, end: Date){
-    return `/flight_data/get_aggregated_range/${flightId}/${vesselPart}/decisecond/${start.toISOString()}/${end.toISOString()}`
+function getCommandsRequestUrl(flightId: string, start: Date, end: Date, commandType?: string, vesselPart?: string, ){
+
+    if(!commandType)
+        commandType = 'all'
+    if(!vesselPart)
+        vesselPart = 'all'
+
+    return `command/get_range/${flightId}/${start.toISOString()}/${end.toISOString()}/${commandType}/${vesselPart}`
 }
 
 function getDispatchCommandUrl(flightId: string){
     return `/command/dispatch/${flightId}`
 }
 
-const store = ref({
-    version: 0,
+const store = shallowRef({
     commands: {} as {[index: string]: CommandState},
     realtimeSubscription: false
 })
@@ -38,21 +43,30 @@ function getOrInitStore(flightId: string, vesselPart: string, commandType: strin
     return thisCommandData
 }
 
-async function fetchFlightDataInTimeFrame(flightId: string, vesselPart: string, commandType: string, start: Date, end: Date) {
+export const ALL_STORE_PLACEHOLDER = 'ALL_TYPES_OR_PARTS'
+
+async function fetchCommandsInTimeFrame(flightId: string, start: Date, end: Date, vesselPart?: string, commandType?: string,) {
 
     if(!store.value.commands)
         store.value.commands = {}
 
-    const thisCommandData = getOrInitStore(flightId, vesselPart, commandType)
+    // In case all parts/types are getting requested, use a dummy tree
+    // to store the request tracking info. Those trees won't be used to store
+    // the actual commands
+    const rangeCheckVesselPart = vesselPart ?? ALL_STORE_PLACEHOLDER
+    const rangeCheckCommandType = commandType ?? ALL_STORE_PLACEHOLDER
 
-    const rangesToLoad = getMissingRangesRecursive(thisCommandData.commands, start, end, DECISECOND, true)
+    const allCommandData = getOrInitStore(flightId, rangeCheckVesselPart, rangeCheckCommandType)
+    const rangesToLoad = getMissingRangesRecursive(allCommandData.commands, start, end, 'minute', true)
 
     if(rangesToLoad.length < 1)
         return
 
     // Make api request for all the missing ranges
-    const requests = rangesToLoad.map(c => fetchRssApi(getCommandsRequestUrl(flightId, vesselPart, c.start, c.end)))
+    const requests = rangesToLoad.map(c => fetchRssApi(getCommandsRequestUrl(flightId, c.start, c.end, commandType, vesselPart)))
 
+
+   
     // wait for all of the request to be completed
     await Promise.all(requests.map(r => until(r.isFinished).toBe(true)))
 
@@ -65,9 +79,28 @@ async function fetchFlightDataInTimeFrame(flightId: string, vesselPart: string, 
 
     const newData: Command[] = requests.map(r => (JSON.parse(r.data.value as string) as Command[])).flat()
 
-    integrateData(newData, thisCommandData);
+    if(!vesselPart || !commandType){
+        const commandsByPartAndType: {[index: string]: { part: string, type: string, commands: Command[]  }} = {}
 
-    store.value.version++
+        newData.forEach(c => {
+            const index = `${c._part_id}*${c._command_type}`
+            let group = commandsByPartAndType[index]
+            if(!group)
+                group = commandsByPartAndType[index] = {part: c._part_id, type: c._command_type, commands: []}
+            group.commands.push(c)
+        })
+
+        Object.keys(commandsByPartAndType).forEach(k => {
+            const group = commandsByPartAndType[k]
+            const scopedStore = getOrInitStore(flightId, group.part, group.type)
+            
+            integrateData(group.commands, scopedStore);
+        })
+    }
+
+    integrateData(newData, allCommandData)
+
+    triggerRef(store)
     
 }
 
@@ -95,9 +128,14 @@ async function subscribeRealtime(flightId: string){
 
         ws.on('command.new', (data: wsCommandNewMsg) => {
 
+            const allCommandData = getOrInitStore(data.flight_id, ALL_STORE_PLACEHOLDER, ALL_STORE_PLACEHOLDER)
+
             data.commands.forEach(cmd => {
 
                 const thisCommandData = getOrInitStore(data.flight_id, cmd._part_id, cmd._command_type)
+                const allPartsCommandData = getOrInitStore(data.flight_id, ALL_STORE_PLACEHOLDER, cmd._command_type)
+                const allTypesCommandData = getOrInitStore(data.flight_id, cmd._part_id, ALL_STORE_PLACEHOLDER)
+
 
                 const asTimeData: Command & TimeTreeData = {
                     ...cmd,
@@ -105,7 +143,13 @@ async function subscribeRealtime(flightId: string){
                 }
 
                 insertValue(thisCommandData.commands, asTimeData)
+                insertValue(allPartsCommandData.commands, asTimeData)
+                insertValue(allTypesCommandData.commands, asTimeData)
+                insertValue(allCommandData.commands, asTimeData)
+
             });
+
+            triggerRef(store)
 
         })
 
@@ -114,6 +158,9 @@ async function subscribeRealtime(flightId: string){
             const cmd = data.command
 
             const thisCommandData = getOrInitStore(data.flight_id, cmd._part_id, cmd._command_type)
+            const allPartsCommandData = getOrInitStore(data.flight_id, ALL_STORE_PLACEHOLDER, cmd._command_type)
+            const allTypesCommandData = getOrInitStore(data.flight_id, cmd._part_id, ALL_STORE_PLACEHOLDER)
+            const allCommandData = getOrInitStore(data.flight_id, ALL_STORE_PLACEHOLDER, ALL_STORE_PLACEHOLDER)
 
             const asTimeData: Command & TimeTreeData = {
                 ...cmd,
@@ -121,6 +168,11 @@ async function subscribeRealtime(flightId: string){
             }
 
             insertValue(thisCommandData.commands, asTimeData)
+            insertValue(allPartsCommandData.commands, asTimeData)
+            insertValue(allTypesCommandData.commands, asTimeData)
+            insertValue(allCommandData.commands, asTimeData)
+
+            triggerRef(store)
         })
 
         ws.on('connect', () => {
@@ -155,7 +207,7 @@ function getAllForFlight(flight_id: string){
 export function useCommandStore(){
 
 
-    return {store, fetchFlightDataInTimeFrame, dispatchCommand, subscribeRealtime, getAllForFlight}
+    return {store, fetchCommandsInTimeFrame, dispatchCommand, subscribeRealtime, getAllForFlight, getOrInitStore}
 }
 
 type wsCommandNewMsg = {

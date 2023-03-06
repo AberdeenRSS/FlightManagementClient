@@ -498,7 +498,7 @@ function onLive() {
         currentDate.value = now
         rangeMaxInternal.value = 1
         rangeMaxDate.value = calculateDatetime(startDate.value, endDate.value, 1)
-        const newMin = currentInternal.value - 0.1
+        const newMin = calculateRelative(startDate.value, endDate.value, new Date(Date.now() - 1000*60))
         rangeMinInternal.value = newMin > 0 ? newMin : 0
         rangeMinDate.value = calculateDatetime(startDate.value, endDate.value, newMin > 0 ? newMin : 0)
         playing.value = true

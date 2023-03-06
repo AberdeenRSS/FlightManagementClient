@@ -3,7 +3,9 @@ import { useDashboardWidgetStore } from "../misc/dashboard/DashboardComposable"
 
 export type FlightDashboardWidgetData = {
     selectedParts: {[id: string]: boolean},
-    selectedSeries: string
+    selectedSeries: string,
+    selectedView: string,
+    inSettings: boolean
 }
 
 export function  useWidgetData(widgetID: [string, string]){

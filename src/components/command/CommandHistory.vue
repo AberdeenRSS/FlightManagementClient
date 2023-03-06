@@ -29,7 +29,7 @@
 <script lang="ts" setup>
 import { useFlightViewState } from '@/composables/useFlightView';
 import { getValues } from '@/helper/timeTree';
-import { useCommandStore, type Command, type CommandStates } from '@/stores/commands';
+import { ALL_STORE_PLACEHOLDER, useCommandStore, type Command, type CommandStates } from '@/stores/commands';
 import { ref, watch } from 'vue';
 
 type EnrichedCommand = Command & {
@@ -41,7 +41,7 @@ type EnrichedCommand = Command & {
 
 const { vesselId, flightId, timeRange } = useFlightViewState()
 
-const { store, getAllForFlight } = useCommandStore()
+const { store, getOrInitStore  } = useCommandStore()
 
 const allCommands = ref<EnrichedCommand[]>([])
 
@@ -61,22 +61,15 @@ const stateIconColorMap: {[P in CommandStates]: string} = {
     failed: 'red-darken-2'
 }
 
-watch([store, timeRange], ([s, range]) => {
-    const commandTimelines = getAllForFlight(flightId.value)
+watch([flightId, store, timeRange], ([f, s, range]) => {
 
-    const res: Command[] = []
+    const scopedStore = getOrInitStore(f, ALL_STORE_PLACEHOLDER, ALL_STORE_PLACEHOLDER)
 
-    commandTimelines.forEach(t => {
-        const commands = getValues(t.commands, range.start, range.cur)
-
-        res.push(...commands)
-    });
-
-    res.sort((a, b) => (typeof a.create_time === 'string' ? Date.parse(a.create_time) : a.create_time.getTime()) - (typeof b.create_time === 'string' ? Date.parse(b.create_time) : b.create_time.getTime()))
+    const commands = getValues(scopedStore.commands, range.start, range.cur)
 
     const enriched: EnrichedCommand[] = []
 
-    res.forEach(c => {
+    commands.forEach(c => {
 
         const date = typeof c.create_time == 'string' ? new Date(c.create_time) : c.create_time;
 
