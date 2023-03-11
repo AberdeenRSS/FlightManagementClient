@@ -4,7 +4,7 @@ import { computed, ref, shallowRef, toRef, watch, type InjectionKey, type Ref } 
 export const DASHBOARD_ID: InjectionKey<string> = Symbol()
 export const DASHBOARD_WIDGET_ID: InjectionKey<[string, string]> = Symbol()
 
-export type Widget = { sizeX: number; sizeY: number; id: string, badSize: boolean, data: { [key: string]: any } }
+export type Widget = { sizeX: number; sizeY: number; id: string, data: { [key: string]: any } }
 export type WidgetSlot = { element: Widget | null; blocked: string | undefined, hoverCount: number; y: number; x: number }
 export type WidgetRow = WidgetSlot[]
 export type WidgetMatrix = WidgetRow[]
@@ -33,7 +33,7 @@ export function useDashboardStore(dashboardId: MaybeRef<string>) {
         if (tryLoadDashboardFromStorage(id))
             return
 
-            dashboardStores.value[id] = { ...{name: '', saved: false}, matrix: [], widgets: [], canDrop: false, rows: 0, cols: 0, ...dashboardStores.value[id] }
+        dashboardStores.value[id] = { ...{ name: '', saved: false }, matrix: [], widgets: [], canDrop: false, rows: 0, cols: 0, ...dashboardStores.value[id] }
         initMatrix()
     }
 
@@ -44,8 +44,8 @@ export function useDashboardStore(dashboardId: MaybeRef<string>) {
         if (!(o?.saved))
             return
 
-        if(!n)
-        return
+        if (!n)
+            return
 
         store.value.saved = false
     }, { deep: true })
@@ -176,11 +176,11 @@ export function useDashboardWidgetStore([dashboardId, widgetId]: [string, string
 
     const { store, getCurrentSlot, removeWidget, putWidget, deleteWidgetInSlot } = useDashboardStore(dashboardId)
 
-    const widget: Ref<Widget | undefined> = ref(undefined)
+
+    const widget: Ref<Widget | undefined> = computed(() => store.value.widgets.find(w => w.id === widgetId))
     const widgetSlot: Ref<WidgetSlot | undefined> = ref(undefined)
 
-    watch(store.value.widgets, () => { widget.value = store.value.widgets.find(w => w.id === widgetId) }, { immediate: true })
-    watch(widget, w => { widgetSlot.value = w ? getCurrentSlot(w) : undefined }, { immediate: true })
+    watch(widget, w => { widgetSlot.value = w ? getCurrentSlot(w) : undefined }, { immediate: true, deep: true })
 
 
     function calculateCanResize() {
@@ -245,7 +245,7 @@ export function useDashboardWidgetStore([dashboardId, widgetId]: [string, string
         enlargeVertical: false
     })
 
-    watch(store.value, () => { canResize.value = calculateCanResize() }, { immediate: true })
+    watch(widget, w => { canResize.value = calculateCanResize() }, { immediate: true, deep: true })
 
     /**
      * 
@@ -272,22 +272,22 @@ export function useDashboardWidgetStore([dashboardId, widgetId]: [string, string
 
         const oldSlot = getCurrentSlot(widget.value)
 
-        const removedWidget = removeWidget(oldSlot!)
+        removeWidget(oldSlot!)
 
         if (direction === 'enlargeHorizontal')
-            removedWidget!.sizeX++;
+            widget.value!.sizeX++;
 
         if (direction === 'shrinkHorizontal')
-            removedWidget!.sizeX--;
+            widget.value!.sizeX--;
 
         if (direction === 'shrinkVertical')
-            removedWidget!.sizeY--;
+            widget.value!.sizeY--;
 
         if (direction === 'enlargeVertical')
-            removedWidget!.sizeY++;
+            widget.value!.sizeY++;
 
 
-        putWidget(oldSlot!, removedWidget!)
+        putWidget(oldSlot!, widget.value!)
     }
 
     function deleteWidget() {
@@ -336,8 +336,8 @@ export function useDashboardPersistStore() {
         })
     }
 
-    function deleteDashboard(id: string){
-       delete dashboardStores.value[id]
+    function deleteDashboard(id: string) {
+        delete dashboardStores.value[id]
     }
 
     function tryLoadDashboardFromStorage(dashboardId: string) {
@@ -352,7 +352,10 @@ export function useDashboardPersistStore() {
 
     function saveDashboardToStorage(dashboardId: string) {
         dashboardStores.value[dashboardId].saved = true
-        localStorage.setItem(getDashboardLocalStorageKey(dashboardId), JSON.stringify(dashboardStores.value[dashboardId]))
+
+        const toStore = dashboardStores.value[dashboardId] as StoreObject
+
+        localStorage.setItem(getDashboardLocalStorageKey(dashboardId), JSON.stringify(toStore))
     }
 
     function saveDashboardIndicesToStorage() {

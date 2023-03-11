@@ -18,7 +18,7 @@ const { vesselId } = useFlightViewState()
 const dashboardWidgetId = inject(DASHBOARD_WIDGET_ID)
 
 if (!dashboardWidgetId)
-    throw new Error('Resizer not used in within a dashboard')
+    throw new Error('Flight Status not used in within a dashboard')
 
 const widgetData = useWidgetData(dashboardWidgetId)
 

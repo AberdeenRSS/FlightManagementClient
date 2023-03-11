@@ -16,5 +16,7 @@
     "emitDecoratorMetadata": true,
     "strict": true,
     "strictNullChecks": true,
+    "target": "ESNext",
+    "module": "ESNext"
   }
 }

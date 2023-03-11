@@ -27,10 +27,12 @@
 </style>
 
 <script lang="ts" setup>
-import { useFlightViewState } from '@/composables/useFlightView';
+import { useFlightViewState, type TimeRange } from '@/composables/useFlightView';
 import { getValues } from '@/helper/timeTree';
 import { ALL_STORE_PLACEHOLDER, useCommandStore, type Command, type CommandStates } from '@/stores/commands';
 import { ref, watch } from 'vue';
+import { watchDebounced } from '@vueuse/core';
+
 
 type EnrichedCommand = Command & {
     stateIcon: string,
@@ -38,8 +40,10 @@ type EnrichedCommand = Command & {
     formattedDate: string,
 }
 
+const { flightId, timeRange } = useFlightViewState()
 
-const { vesselId, flightId, timeRange } = useFlightViewState()
+const throttledTimeRange = ref<TimeRange>(timeRange.value)
+watchDebounced(timeRange, v => throttledTimeRange.value = v, {immediate: true, deep: true, debounce: 200, maxWait: 500})
 
 const { store, getOrInitStore  } = useCommandStore()
 
@@ -61,7 +65,7 @@ const stateIconColorMap: {[P in CommandStates]: string} = {
     failed: 'red-darken-2'
 }
 
-watch([flightId, store, timeRange], ([f, s, range]) => {
+watch([flightId, store, throttledTimeRange], ([f, s, range]) => {
 
     const scopedStore = getOrInitStore(f, ALL_STORE_PLACEHOLDER, ALL_STORE_PLACEHOLDER)
 

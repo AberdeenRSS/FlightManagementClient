@@ -33,7 +33,7 @@ const props = defineProps({
 
 const { commandType, part } = toRefs(props)
 
-const { vesselId, flightId, timeRange } = useFlightViewState()
+const { flightId } = useFlightViewState()
 
 const { dispatchCommand } = useCommandStore()
 

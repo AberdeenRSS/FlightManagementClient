@@ -114,7 +114,7 @@ function onDragenter(event: DragEvent, item: WidgetSlot) {
 }
 
 function onAddWidget(col: WidgetSlot) {
-    addWidget(col, { sizeX: 1, sizeY: 1, id: v4(), badSize: false, data: {} })
+    addWidget(col, { sizeX: 1, sizeY: 1, id: v4(), data: {} })
 }
 
 </script>

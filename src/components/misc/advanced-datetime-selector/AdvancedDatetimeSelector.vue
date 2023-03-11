@@ -473,11 +473,6 @@ function onMouseUp($event: TouchOrMouseEvent){
 window.addEventListener('mousemove', onMouseMove)
 window.addEventListener('mouseup', onMouseUp)
 
-// window.addEventListener('mousedown', () => console.log('onmousedown'))
-
-// window.addEventListener('mousemove', () => console.log('onmouse'))
-// window.addEventListener('mouseup', () => console.log('onmouseup'))
-
 window.addEventListener('touchmove', onMouseMove)
 window.addEventListener('touchend', onMouseUp)
 window.addEventListener('touchcancel', onMouseUp)

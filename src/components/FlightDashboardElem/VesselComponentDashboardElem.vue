@@ -29,8 +29,11 @@
                             <FlightStatusSettings></FlightStatusSettings>
                         </div>
 
-                        <div v-if="selectedTab === 'General'" class="settings-item">
+                        <div v-if="selectedTab === 'Select Command'" class="settings-item">
+                            <CommandDispatchBar v-model:command-type="widgetData.commandDispatchSelectedCommandType" v-model:part-id="commandSelectedPart"></CommandDispatchBar>
+                        </div>
 
+                        <div v-if="selectedTab === 'General'" class="settings-item">
                             <DashboardResizer></DashboardResizer>
                         </div>
                         <v-btn v-if="selectedTab === 'General'" color="error" @click="deleteWidget()">Delete</v-btn>
@@ -55,6 +58,10 @@
 
                     <div class="flex-grow-1" v-if="widgetData.selectedView === 'Status'">
                         <FlightStatus></FlightStatus>
+                    </div>
+
+                    <div class="flex-grow-1" v-if="widgetData.selectedView === 'Command'">
+                        <CommandDispatchButton :part="selectedPart?._id" :command-type="widgetData.commandDispatchSelectedCommandType"></CommandDispatchButton>
                     </div>
 
                 </div>
@@ -112,12 +119,15 @@ import { DASHBOARD_WIDGET_ID, useDashboardWidgetStore } from '../misc/dashboard/
 import SimpleFlightDataChart from '../flight_data/SimpleFlightDataChart.vue'
 import FlightStatusSettings from '../flight_data/FlightStatusSettings.vue';
 import FlightStatus from '../flight_data/FlightStatus.vue'
+import CommandDispatchBar from '../command/CommandDispatchBar.vue';
+import CommandDispatchButton from '../command/CommandDispatchButton.vue';
 import { useFlightDataStore } from '@/stores/flight_data'
 import { throttledWatch, watchDebounced, watchThrottled } from '@vueuse/shared';
 import { useVesselStore } from '@/stores/vessels';
 import { useSelectedPart, useWidgetData, type FlightDashboardWidgetData } from '../flight_data/flightDashboardElemStoreTypes';
 import { useComponentConfiguration } from '@/composables/componentsConfiguration/componentConfiguration';
 import { useFlightViewState } from '@/composables/useFlightView';
+
 
 const dashboardWidgetId = inject(DASHBOARD_WIDGET_ID)
 
@@ -131,27 +141,51 @@ widgetData.value.selectedParts = widgetData.value.selectedParts ?? {}
 widgetData.value.selectedView = widgetData.value.selectedView ?? 'Graph'
 widgetData.value.inSettings = 'inSettings' in widgetData.value ? widgetData.value.inSettings : true
 
-const views = ['Graph', 'Status']
+const views = ['Graph', 'Status', 'Command']
 
 const baseTabs = ['Select View', 'Select Part', 'General']
-const tabs = computed(() => widgetData.value.selectedView=== 'Status' ? [...baseTabs, 'Status'] : baseTabs)
+const tabs = ref<string[]>(baseTabs)
 const selectedTab = ref<string>('Select View')
+
+watch([widgetData], ([wd]) => {
+
+    const view = wd.selectedView
+
+    if(view === 'Status') 
+       tabs.value = [...baseTabs, 'Status']
+    else if(view === 'Command')
+        tabs.value = ['Select View', 'General', 'Select Command']
+    else
+        tabs.value = baseTabs
+
+    // Reset tab if it is no longer available
+    if (!tabs.value.some(t => t === selectedTab.value))
+        selectedTab.value = tabs.value[0]
+
+}, {immediate: true, deep: true})
+
 
 const size = ref({ x: 2, y: 2 })
 
+
+
 const { vesselId, flightId, timeRange, resolution, live } = useFlightViewState()
-
 const { fetchFlightDataInTimeFrame, subscribeRealtime } = useFlightDataStore()
-
 const { getVessel } = useVesselStore()
-
 const selectedPartId = useSelectedPart(dashboardWidgetId)
 
 const vessel = computed(() => getVessel(vesselId.value))
-
 const title = computed(() => selectedPartId.value ? vessel.value?.parts.find(p => p._id === selectedPartId.value)?.name : 'No Part Selected')
-
 const selectedPart = computed(() => vessel.value?.parts.find(p => p._id === selectedPartId.value))
+
+const commandSelectedPart = computed({
+    get(){
+        return selectedPart.value?._id
+    },
+    set(value: string | undefined){
+        widgetData.value.selectedParts = value? {[value]: true} : {}
+    }
+})
 
 const { configurations } = useComponentConfiguration()
 const relevantConfiguration = computed(() => selectedPartId.value && selectedPart.value ? configurations[selectedPart.value?.part_type] : undefined)

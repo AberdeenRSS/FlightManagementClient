@@ -5,7 +5,9 @@ export type FlightDashboardWidgetData = {
     selectedParts: {[id: string]: boolean},
     selectedSeries: string,
     selectedView: string,
-    inSettings: boolean
+    inSettings: boolean,
+    commandDispatchSelectedCommandType: string | undefined,
+
 }
 
 export function  useWidgetData(widgetID: [string, string]){

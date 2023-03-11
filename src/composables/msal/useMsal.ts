@@ -3,9 +3,15 @@ import { ref, type Ref } from "vue";
 
 export type LoginStates = 'requestSilent' | 'default' | 'failed' | 'requestLogin' | 'requestLogout'
 
-const tenantId = 'ed38e9ed-ef79-4415-b1aa-36e883726313'
-const clientId = 'd9f91861-0388-4e8e-af85-5b91237e64e2'
-const baseUrl = 'http://localhost:4000/'
+
+const tenantId = import.meta.env.VITE_MSAL_TENANT_ID;
+const clientId = import.meta.env.VITE_MSAL_CLIENT_ID;
+const baseUrl = import.meta.env.BASE_URL;
+
+
+// const tenantId = 'ed38e9ed-ef79-4415-b1aa-36e883726313'
+// const clientId = 'd9f91861-0388-4e8e-af85-5b91237e64e2'
+// const baseUrl = 'http://localhost:8080/'
 
 const msalConfig: msal.Configuration = {
     auth: {

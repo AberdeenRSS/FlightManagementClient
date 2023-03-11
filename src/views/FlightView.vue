@@ -10,7 +10,9 @@
 
 
     <div class="playbar-drawer">
-        <CommandDispatchBar v-if="extraView === 'command'" :vessel-id="vessel_id" :flight-id="id"></CommandDispatchBar>
+        <CommandDispatchBar v-if="extraView === 'command'" :vessel-id="vessel_id" :flight-id="id" v-model:command-type="commandDispatchCommandType" v-model:part-id="commandDispatchPartId">
+            <CommandDispatchButton :command-type="commandDispatchCommandType" :part="commandDispatchPartId"></CommandDispatchButton>
+        </CommandDispatchBar>
         <DashboardSaver v-if="extraView === 'dashboard'" v-model="dashboardId"></DashboardSaver>
         <AdvancedDatetimeSelector :start-date="startTime" :end-date="endTime" @current-date="currentDate = $event"
             @range-min-date="rangeMinDate = $event" @range-max-date="rangeMaxDate = $event" @live="$event => live = $event">
@@ -101,6 +103,7 @@ import DashboardSaver from '@/components/misc/dashboard/DashboardSaver.vue';
 import WidgetDashboard from '@/components/misc/dashboard/WidgedDashboard.vue'
 import AdvancedDatetimeSelector from '@/components/misc/advanced-datetime-selector/AdvancedDatetimeSelector.vue';
 import CommandDispatchBar from '@/components/command/CommandDispatchBar.vue'
+import CommandDispatchButton from '@/components/command/CommandDispatchButton.vue';
 import { useFlightViewState, useProvideFlightView, type TimeRange } from '@/composables/useFlightView'
 import { useCommandStore } from '@/stores/commands';
 import { watchDebounced, watchThrottled } from '@vueuse/shared';
@@ -130,6 +133,10 @@ const resolutionTexts: { [P in AggregationLevels | 'smallest']?: string } = {
     'minute': 'minutes',
     'hour': 'hours',
 }
+
+const commandDispatchPartId = ref<string | undefined>()
+const commandDispatchCommandType = ref<string | undefined>()
+
 
 const { setTimeRange, setFlightId, setVesselId, setLive, setResolution } = useProvideFlightView()
 
@@ -164,7 +171,7 @@ watchDebounced([rangeMinDate, rangeMaxDate, currentDate], ([start, end, cur]) =>
     selectedDatetime.value.cur = cur;
 
     //  = {start, end, cur};
-}, { immediate: true, debounce: 200, maxWait: 1000 })
+}, { immediate: true, debounce: 30, maxWait: 30 })
 
 watch(selectedDatetime, setTimeRange, { immediate: true, deep: true })
 

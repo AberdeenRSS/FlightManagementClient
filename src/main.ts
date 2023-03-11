@@ -17,7 +17,7 @@ app.use(vuetify)
 app.use(createPinia())
 app.use(router)
 
-setupCytoscape()
+// setupCytoscape()
 
 app.mount('#app')
 

@@ -33,7 +33,7 @@ import { computed, defineProps, inject, ref, toRef, toRefs, watch } from 'vue'
 import { DASHBOARD_WIDGET_ID, useDashboardWidgetStore } from '../misc/dashboard/DashboardComposable';
 import { useWidgetData, useSelectedPart } from './flightDashboardElemStoreTypes';
 import { useVesselStore } from '@/stores/vessels'
-import { useFlightViewState } from '@/composables/useFlightView';
+import { useFlightViewState, type TimeRange } from '@/composables/useFlightView';
 import { isAggregatedMeasurement, useFlightDataStore, type FlightDataChunk, type FlightDataChunkAggregated, type MeasurementTypes } from '@/stores/flight_data';
 import { getClosest, type TimeTreeData } from '@/helper/timeTree'
 import { watchDebounced, watchThrottled } from '@vueuse/shared';
@@ -42,12 +42,15 @@ const dashboardWidgetId = inject(DASHBOARD_WIDGET_ID)
 
 const { vesselId, flightId,  timeRange } = useFlightViewState()
 
+const throttledTimeRange = ref<TimeRange>(timeRange.value)
+watchDebounced(timeRange, v => throttledTimeRange.value = v, {immediate: true, deep: true, debounce: 200, maxWait: 500})
+
 const partId = useSelectedPart(dashboardWidgetId!)
 
 const widgetData = useWidgetData(dashboardWidgetId!)
 
 if (!dashboardWidgetId)
-    throw new Error('Resizer not used in within a dashboard')
+    throw new Error('Flight Status not used in within a dashboard')
 
 const { getVessel } = useVesselStore()
 const vessel = computed(() => getVessel(vesselId.value))
@@ -70,7 +73,7 @@ const flightData = toRef(store$.value.flight_data, flightId.value)
 
 const measurement = ref<(FlightDataChunk & TimeTreeData) | (FlightDataChunkAggregated & TimeTreeData) | undefined>(undefined)
 
-watchDebounced([store$, flightId, partId, timeRange], ([store, flight, part, range]) => {
+watchDebounced([store$, flightId, partId, throttledTimeRange], ([store, flight, part, range]) => {
 
     const id = `${flight}*${part}`
 

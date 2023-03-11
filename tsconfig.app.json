@@ -9,6 +9,8 @@
       "@/*": ["./src/*"]
     },
     "experimentalDecorators": true,
-  
+    "target": "ESNext",
+    "module": "ESNext",
+    "lib": ["ESNext", "dom"]
   }
 }

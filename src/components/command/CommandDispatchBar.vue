@@ -18,7 +18,10 @@
             </div>
         </v-menu>
 
-        <CommandDispatchButton :command-type="selectedCommandType" :part="selectedPart?._id"></CommandDispatchButton>
+        <slot>
+
+        </slot>
+
         <!-- <v-btn variant="plain" size="small" :icon="cmdExpanded ? 'mdi-menu-down' : 'mdi-menu-up'"
             @click="cmdExpanded = !cmdExpanded"></v-btn> -->
     </div>
@@ -26,13 +29,13 @@
 
 <style lang="scss">
 .dispatch-container {
-    padding: 0 4rem;
+    padding: 0 1rem;
 
-    @media screen and (max-width: 800px) {
+    // @media screen and (max-width: 800px) {
 
-        padding: 0 1rem;
+    //     padding: 0 1rem;
 
-    }
+    // }
 }
 
 .component-select {
@@ -48,8 +51,7 @@
     min-width: 20vw;
 }
 
-.cmd-history {
-}
+.cmd-history {}
 </style>
   
 <script setup lang="ts">
@@ -63,9 +65,45 @@ import type { Command } from '@/stores/commands';
 import { v4 } from 'uuid';
 import CommandHistory from './CommandHistory.vue';
 
+const props = defineProps({
+    commandType: {
+        type: String,
+        default: undefined
+    },
+    partId: {
+        type: String,
+        default: undefined
+    }
+})
+
+const emit = defineEmits<{
+    (event: 'update:commandType', value: string | undefined): void,
+    (event: 'update:partId', value: string | undefined): void,
+}>()
+
+const { commandType, partId } = toRefs(props)
+
+const selectedCommandTypeBacking = ref<string | undefined>()
+
+watch(commandType!, value => selectedCommandTypeBacking.value = value, {immediate: true})
+
+const selectedCommandType = computed({
+    get() {
+        return selectedCommandTypeBacking.value
+    },
+    set(value: string | undefined) {
+        selectedCommandTypeBacking.value = value
+        emit('update:commandType', value)
+    }
+})
+
+const selectedPartId = ref<string | undefined>()
+
+watch(partId!, value => selectedPartId!.value = value, { immediate: true })
+
 const cmdExpanded = ref(false)
 
-const { vesselId, flightId, timeRange } = useFlightViewState()
+const { vesselId, flightId } = useFlightViewState()
 const vesselStore = useVesselStore()
 
 const flightStore = useFlightStore()
@@ -74,16 +112,11 @@ const flight = computed(() => vesselId && flightId ? flightStore.vesselFlights[v
 
 const selected = ref<{ [id: string]: boolean }>({})
 
-const selectedPartId = ref<string | undefined>()
-
 const vessel = vesselStore.getVessel(vesselId.value)
 
 const selectedPart = computed(() => vessel && selectedPartId.value ? vessel.parts.find(p => p._id === selectedPartId.value) : undefined)
 
 const availableCommands = ref<string[]>([])
-
-const selectedCommandType = ref<string | undefined>(undefined)
-
 
 const componentFilter = ref<string[]>([])
 
@@ -99,24 +132,28 @@ watch(flight, f => {
 
 }, { immediate: true, deep: true })
 
-watch([selectedCommandType, flight], ([commandType, f]) => {
-    if(!commandType || !f){
+watch([selectedCommandType!, flight], ([commandType, f]) => {
+    if (!commandType || !f) {
         componentFilter.value = []
         return
     }
 
     componentFilter.value = f.available_commands[commandType].supporting_parts
-},  { immediate: true, deep: true })
+}, { immediate: true, deep: true })
 
 
 watch(selected, s => {
 
     const keys = Object.keys(s).filter(k => s[k])
-    if (!keys)
+    if (!keys) {
         selectedPartId.value = undefined
-    else
+        emit('update:partId', undefined)
+    }
+    else {
         selectedPartId.value = keys[0]
-}, {immediate: true, deep: true})
+        emit('update:partId', keys[0])
+    }
+}, { immediate: true, deep: true })
 
 
 </script>
