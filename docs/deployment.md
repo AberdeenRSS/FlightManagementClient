@@ -1,6 +1,6 @@
 User docker command:
 ```shell
-docker build . -f .dockerfile -t rssrocketcontrolcontainer.azurecr.io/rss/flight-management-client
+docker build . -t rssrocketcontrolcontainer.azurecr.io/rss/flight-management-client:latest -t rssrocketcontrolcontainer.azurecr.io/rss/flight-management-client:v
 ```
 
 Then
@@ -12,7 +12,7 @@ docker login rssrocketcontrolcontainer.azurecr.io
 and
 
 ```shell
-docker push rssrocketcontrolcontainer.azurecr.io/rss/flight-management-client
+docker push rssrocketcontrolcontainer.azurecr.io/rss/flight-management-client -a
 ```
 
 Registry docs:

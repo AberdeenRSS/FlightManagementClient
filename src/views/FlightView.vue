@@ -14,7 +14,7 @@
             <CommandDispatchButton :command-type="commandDispatchCommandType" :part="commandDispatchPartId"></CommandDispatchButton>
         </CommandDispatchBar>
         <DashboardSaver v-if="extraView === 'dashboard'" v-model="dashboardId"></DashboardSaver>
-        <AdvancedDatetimeSelector :start-date="startTime" :end-date="endTime" @current-date="currentDate = $event"
+        <AdvancedDatetimeSelector v-if="startTime && endTime" :start-date="startTime" :end-date="endTime" @current-date="currentDate = $event"
             @range-min-date="rangeMinDate = $event" @range-max-date="rangeMaxDate = $event" @live="$event => live = $event">
 
             <template v-slot:nav-items>
@@ -154,18 +154,27 @@ flightStore.fetchFlightsForVesselIfNecessary(vessel_id)
 
 const flight = computed(() => flightStore.vesselFlights[vessel_id]?.flights[id]?.flight)
 
-const startTime = computed(() => flight.value ? new Date(Date.parse(flight.value.start)) : new Date())
-const endTime = computed(() => flight.value && flight.value.end ? new Date(Date.parse(flight.value.end)) : new Date())
+const startTime = computed(() => flight.value ? new Date(Date.parse(flight.value.start)) : undefined)
+const endTime = computed(() => (flight.value && flight.value.end) ? new Date(Date.parse(flight.value.end)) : undefined)
 
-const rangeMinDate = ref(new Date())
-const rangeMaxDate = ref(new Date())
-const currentDate = ref(new Date())
+const rangeMinDate = ref()
+const rangeMaxDate = ref()
+const currentDate = ref()
 
 // const selectedDatetime = computed(() => ({start: rangeMinDate, end: rangeMaxDate, cur: currentDate}))
 
-const selectedDatetime = ref<TimeRange>({ start: new Date(), end: new Date(), cur: new Date() })
+const selectedDatetime = ref<TimeRange>()
 
 watchDebounced([rangeMinDate, rangeMaxDate, currentDate], ([start, end, cur]) => {
+
+    if(!start || !end || !cur)
+        return
+
+    if(!selectedDatetime.value){
+        selectedDatetime.value = {start, end, cur}
+        return
+    }
+
     selectedDatetime.value.start = start;
     selectedDatetime.value.end = end;
     selectedDatetime.value.cur = cur;
@@ -176,6 +185,9 @@ watchDebounced([rangeMinDate, rangeMaxDate, currentDate], ([start, end, cur]) =>
 watch(selectedDatetime, setTimeRange, { immediate: true, deep: true })
 
 watch(timeRange, r => {
+
+    if(!r)
+        return
 
     fetchCommandsInTimeFrame(id, r.start, r.end)
 

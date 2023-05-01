@@ -14,7 +14,7 @@
             </template>
 
             <div class="component-select">
-                <VesselChart :vessel-id="vesselId" v-model="selected" :filter="componentFilter"></VesselChart>
+                <VesselChart :vessel-id="vesselId" :version="flight?._vessel_version" v-model="selected" :filter="componentFilter"></VesselChart>
             </div>
         </v-menu>
 
@@ -42,7 +42,7 @@
 
     background-color: rgba(112, 112, 112, 0.563);
 
-    z-index: 700;
+    z-index: 701;
 
     height: 30vw;
     width: 20vw;
@@ -57,7 +57,7 @@
 <script setup lang="ts">
 import { computed, ref, toRefs, watch } from 'vue';
 import VesselChart from '@/components/vessel/VesselChart.vue'
-import { useVesselStore } from '@/stores/vessels';
+import { useVesselStore, getVesselHistoric, type Vessel } from '@/stores/vessels';
 import { useFlightViewState } from '@/composables/useFlightView';
 import { useFlightStore } from '@/stores/flight';
 import CommandDispatchButton from './CommandDispatchButton.vue';
@@ -112,9 +112,19 @@ const flight = computed(() => vesselId && flightId ? flightStore.vesselFlights[v
 
 const selected = ref<{ [id: string]: boolean }>({})
 
-const vessel = vesselStore.getVessel(vesselId.value)
+const vessel = ref<Vessel | undefined>(undefined)
 
-const selectedPart = computed(() => vessel && selectedPartId.value ? vessel.parts.find(p => p._id === selectedPartId.value) : undefined)
+watch(flight, f => {
+    if(!f)
+        return
+    vesselStore.fetchHistoricVessel(f._vessel_id, f._vessel_version)
+    watch(getVesselHistoric(vesselStore, f._vessel_id, f._vessel_version), v =>{ 
+        if(v?.entity)
+            vessel.value = v.entity
+    }, {immediate: true, deep: true} )
+}, {immediate: true, deep: true})
+
+const selectedPart = computed(() => vessel.value && selectedPartId.value ? vessel.value.parts.find(p => p._id === selectedPartId.value) : undefined)
 
 const availableCommands = ref<string[]>([])
 

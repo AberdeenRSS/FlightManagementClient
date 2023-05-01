@@ -85,15 +85,15 @@ export type TimeTreeNode<TLeafData extends TimeTreeData, TOwnData extends TimeTr
  * @param aggregationLevel The aggregation level to round at
  * @returns 
  */
-function roundToAggregationLevel(date: Date, aggregationLevel: AggregationLevels){
+function roundToAggregationLevel(date: number, aggregationLevel: AggregationLevels){
 
     // In case of eternity return the unix minimum date
     if(aggregationLevel === 'eternity')
-        return new Date()
+        return 0
 
     const roundingFactor = roundingMillis[aggregationLevel]
 
-    return new Date(Math.floor(date.getTime()/roundingFactor)*roundingFactor)
+    return Math.floor(date/roundingFactor)*roundingFactor
 }
 
 /**
@@ -108,16 +108,16 @@ function roundToAggregationLevel(date: Date, aggregationLevel: AggregationLevels
  * @param aggregationLevel The aggregation level to get the chunks for
  * @returns 
  */
-export function getChunksInRange(start: Date, end: Date, aggregationLevel: Exclude<AggregationLevels, typeof ETERNITY>){
+export function getChunksInRange(start: number, end: number, aggregationLevel: Exclude<AggregationLevels, typeof ETERNITY>){
 
     const stepMillis = roundingMillis[aggregationLevel]
-    const endMillis = end.getTime()
-    const res: Date[] = []
-    let cur = roundToAggregationLevel(start, aggregationLevel).getTime();
+    const endMillis = end
+    const res: number[] = []
+    let cur = roundToAggregationLevel(start, aggregationLevel);
 
     while(cur < endMillis)
     {
-        res.push(new Date(cur))
+        res.push(cur)
         cur += stepMillis
     }
 
@@ -212,19 +212,20 @@ export function getMissingRangesRecursive(node: TimeTreeNode<any, any>, start: D
     const nextAggregationLevel = AggregationLevelMap[nodeAggregationLevelIndex-1] as Exclude<AggregationLevels, typeof ETERNITY>
 
     const min = (start.getTime() > nodeTimeSpan.start.getTime() || node.aggregationLevel === 'eternity') ? start : nodeTimeSpan.start
-    const max = (end.getTime() < nodeTimeSpan.start.getTime() || node.aggregationLevel === 'eternity') ? end : nodeTimeSpan.end
+    const max = (end.getTime() < nodeTimeSpan.end.getTime() || node.aggregationLevel === 'eternity') ? end : nodeTimeSpan.end
 
-    const chunksToConsider = getChunksInRange(min, max, nextAggregationLevel)
+    const chunksToConsider = getChunksInRange(min.getTime(), max.getTime(), nextAggregationLevel)
 
     // const chunksToLoad: TimeSpan[] = []
     const nodesToCheck: TimeTreeNode<any, any>[] = []
 
     chunksToConsider.forEach(c => {
+        const asDate = new Date(c)
         // Always another node, as decisecond level is already excluded earlier
-        let member = node.members[c.toISOString()] as TimeTreeNode<any, any>
+        let member = node.members[asDate.toISOString()] as TimeTreeNode<any, any>
 
         if(!member)
-            member = node.members[c.toISOString()] = { aggregationLevel: nextAggregationLevel, start: c, members: {}, loadingState: 'NOT_REQUESTED', requested: {} } as TimeTreeNode<any, any>
+            member = node.members[asDate.toISOString()] = { aggregationLevel: nextAggregationLevel, start: asDate, members: {}, loadingState: 'NOT_REQUESTED', requested: {} } as TimeTreeNode<any, any>
         
         nodesToCheck.push(member)
 
@@ -290,15 +291,16 @@ export function allocateTimeTreeAtLevel(node: TimeTreeNode<any, any>, start: Dat
 
     const nextAggregationLevel = AggregationLevelMap[aggregationLevelIndex-1] as Exclude<AggregationLevels, typeof ETERNITY>
 
-    const chunksToConsider = getChunksInRange(start, end, nextAggregationLevel)
+    const chunksToConsider = getChunksInRange(start.getTime(), end.getTime(), nextAggregationLevel)
 
     // For each chunk check if the member has to be created and do so if needed
     // Then repeat allocation on the member
     chunksToConsider.forEach(c => {
-        let member = node.members[c.toISOString()] as TimeTreeNode<any, any>
+        const asDate = new Date(c)
+        let member = node.members[asDate.toISOString()] as TimeTreeNode<any, any>
 
         if(!member)
-            member = node.members[c.toISOString()] = { aggregationLevel: nextAggregationLevel, start: c, members: {}, loadingState: loadingState, requested: {} }
+            member = node.members[asDate.toISOString()] = { aggregationLevel: nextAggregationLevel, start: asDate, members: {}, loadingState: loadingState, requested: {} }
 
         allocateTimeTreeAtLevel(member, start, end, level, loadingState)
     })
@@ -332,7 +334,7 @@ export function insertValue<TLeafData extends TimeTreeData, TOwnData extends Tim
     const nextAggregationLevel = AggregationLevelMap[aggregationLevelIndex-1] as Exclude<AggregationLevels, typeof ETERNITY>
 
 
-    const rounded = roundToAggregationLevel(date, nextAggregationLevel)
+    const rounded = new Date(roundToAggregationLevel(date.getTime(), nextAggregationLevel))
 
     let member = node.members[rounded.toISOString()] as TimeTreeNode<TLeafData, TOwnData>
     
@@ -377,12 +379,13 @@ export function getValues<TLeafData extends TimeTreeData, TOwnData extends TimeT
     const min = (start.getTime() > nodeTimeSpan.start.getTime() || node.aggregationLevel === 'eternity') ? start : nodeTimeSpan.start
     const max = (end.getTime() < nodeTimeSpan.start.getTime() || node.aggregationLevel === 'eternity') ? end : nodeTimeSpan.end
 
-    const chunksToConsider = getChunksInRange(min, max, nextAggregationLevel)
+    const chunksToConsider = getChunksInRange(min.getTime(), max.getTime(), nextAggregationLevel)
 
     // For each chunk check if the member has to be created and do so if needed
     // Then repeat allocation on the member
     return chunksToConsider.map(c => {
-        const member = node.members[c.toISOString()] as TimeTreeNode<TLeafData, TOwnData>
+        const asDate = new Date(c)
+        const member = node.members[asDate.toISOString()] as TimeTreeNode<TLeafData, TOwnData>
 
         if(!member)
             return []

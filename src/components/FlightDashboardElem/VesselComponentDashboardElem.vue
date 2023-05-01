@@ -22,7 +22,7 @@
                         </div>
 
                         <div v-if="selectedTab === 'Select Part'" class="settings-item">
-                            <VesselChart :vessel-id="vesselId" v-model="widgetData.selectedParts"></VesselChart>
+                            <VesselChart :vessel-id="vesselId" :version="flight?._vessel_version" v-model="widgetData.selectedParts"></VesselChart>
                         </div>
 
                         <div v-if="selectedTab === 'Status'" class="settings-item">
@@ -123,10 +123,11 @@ import CommandDispatchBar from '../command/CommandDispatchBar.vue';
 import CommandDispatchButton from '../command/CommandDispatchButton.vue';
 import { useFlightDataStore } from '@/stores/flight_data'
 import { throttledWatch, watchDebounced, watchThrottled } from '@vueuse/shared';
-import { useVesselStore } from '@/stores/vessels';
+import { getVesselHistoric, useVesselStore, type Vessel } from '@/stores/vessels';
 import { useSelectedPart, useWidgetData, type FlightDashboardWidgetData } from '../flight_data/flightDashboardElemStoreTypes';
 import { useComponentConfiguration } from '@/composables/componentsConfiguration/componentConfiguration';
 import { useFlightViewState } from '@/composables/useFlightView';
+import { useFlightStore } from '@/stores/flight';
 
 
 const dashboardWidgetId = inject(DASHBOARD_WIDGET_ID)
@@ -171,10 +172,26 @@ const size = ref({ x: 2, y: 2 })
 
 const { vesselId, flightId, timeRange, resolution, live } = useFlightViewState()
 const { fetchFlightDataInTimeFrame, subscribeRealtime } = useFlightDataStore()
-const { getVessel } = useVesselStore()
 const selectedPartId = useSelectedPart(dashboardWidgetId)
 
-const vessel = computed(() => getVessel(vesselId.value))
+const vesselStore = useVesselStore()
+
+const flightStore = useFlightStore()
+
+const flight = computed(() => vesselId && flightId ? flightStore.vesselFlights[vesselId.value]?.flights[flightId.value]?.flight : undefined)
+
+const vessel = ref<Vessel | undefined>(undefined)
+
+watch(flight, f => {
+    if(!f)
+        return
+    vesselStore.fetchHistoricVessel(f._vessel_id, f._vessel_version)
+    watch(getVesselHistoric(vesselStore, f._vessel_id, f._vessel_version), v =>{ 
+        if(v?.entity)
+            vessel.value = v.entity
+    }, {immediate: true, deep: true} )
+}, {immediate: true, deep: true})
+
 const title = computed(() => selectedPartId.value ? vessel.value?.parts.find(p => p._id === selectedPartId.value)?.name : 'No Part Selected')
 const selectedPart = computed(() => vessel.value?.parts.find(p => p._id === selectedPartId.value))
 
@@ -198,10 +215,15 @@ const debounceTime = computed(() => live.value ? 4000 : 300)
 
 watchDebounced(timeRange, r => debouncedRange.value = r, {immediate: true, deep: true, debounce: debounceTime, maxWait: 5000})
 
-watch([flightId, selectedPartId, debouncedRange, resolution], ([v, id, r, res]) => {
+watch([flightId, selectedPartId, debouncedRange, resolution, live], ([v, id, r, res, l]) => {
 
     if (!id)
         return
+
+    if(!r)
+        return
+
+    if(!l)
 
     if(res != 'eternity')
         fetchFlightDataInTimeFrame(v, id, r.start, r.end, res)

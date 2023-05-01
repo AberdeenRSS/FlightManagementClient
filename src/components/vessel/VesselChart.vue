@@ -6,9 +6,9 @@
 
   
 <script setup lang="ts">
-import { useVesselStore, type Vessel } from '@/stores/vessels';
+import { getVesselHistoric, useVesselStore, type Vessel } from '@/stores/vessels';
 import cytoscape from 'cytoscape'
-import { computed, getCurrentInstance, onMounted, reactive, ref, render, toRefs, watch } from 'vue';
+import { computed, getCurrentInstance, onMounted, reactive, ref, render, toRefs, watch, type WatchStopHandle } from 'vue';
 import * as color from 'color'
 import { until } from '@vueuse/shared';
 
@@ -19,6 +19,11 @@ const props = defineProps({
     vesselId: {
         type: String,
         required: true
+    },
+    version: {
+        type: Number,
+        required: false,
+        default: undefined
     },
     modelValue: {
         type: Object,
@@ -34,7 +39,7 @@ const emit = defineEmits<{
     (event: 'update:modelValue', selectedParts: { [id: string]: boolean }): void
 }>()
 
-const { vesselId, modelValue, filter } = toRefs(props)
+const { vesselId, modelValue, filter, version } = toRefs(props)
 
 // Own state
 const selectedParts = ref({} as { [id: string]: boolean })
@@ -44,13 +49,34 @@ watch(selectedParts, p => emit('update:modelValue', p))
 const vesselStore = useVesselStore()
 vesselStore.fetchVesselsIfNecessary()
 
+const vesselRaw = ref<Vessel | undefined>(undefined)
 
-const vesselRaw = computed(() => vesselStore.vessels[vesselId.value]?.entity);
+let stopWatchVessel: WatchStopHandle | undefined = undefined
 
-const vesselChartData = computed(() => {
+watch(([vesselId!, version!]), ([id, version]) => {
+    if (!id)
+        return
 
-    return vesselRaw.value?.parts.map(p => ({ id: p._id, parent: p.parent ?? vesselId.value, name: p.name, type: p.part_type }))
-})
+    stopWatchVessel?.()
+
+    if (!version) {
+        stopWatchVessel = watch(vesselStore.getVesselState(id), v => {
+            if (v?.entity)
+                vesselRaw.value = v.entity
+        }, { immediate: true, deep: true })
+        return
+    }
+
+    vesselStore.fetchHistoricVessel(id, version)
+    stopWatchVessel = watch(getVesselHistoric(vesselStore, id, version), v => {
+        if (v?.entity)
+            vesselRaw.value = v.entity
+    }, { immediate: true, deep: true })
+
+}, { immediate: true, deep: true })
+
+const vesselChartData = computed(() => vesselRaw.value?.parts.map(p => ({ id: p._id, parent: p.parent ?? vesselId.value, name: p.name, type: p.part_type }))
+)
 
 
 onMounted(() => {
@@ -148,7 +174,7 @@ onMounted(() => {
             avoidOverlap: true
         }).run()
 
-    }, { immediate: true });
+    }, { immediate: true, deep: true });
 
     watch(vesselChartData, async (cd) => {
 

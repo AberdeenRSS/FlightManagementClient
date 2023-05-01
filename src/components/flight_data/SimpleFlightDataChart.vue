@@ -1,5 +1,8 @@
 <template>
     <div :id="divID" class="chart"></div>
+    <!-- {{ loadedDataPoints }}
+    <br>
+    {{ frameTime }}ms -->
 </template>
 
 <style lang="scss">
@@ -14,12 +17,13 @@ import { fetchRssApi } from '@/composables/api/rssFlightServerApi';
 import { until, watchDebounced, watchThrottled } from '@vueuse/core';
 import { computed, onMounted, reactive, toRefs, watch, onUnmounted, ref, type Ref, type WatchStopHandle, inject, shallowRef, triggerRef } from 'vue';
 import bb, { areaLineRange, line, scatter, zoom, type Chart } from "billboard.js";
-import { isAggregatedMeasurement, useFlightDataStore, type FlightDataChunk, type FlightDataChunkAggregated, type FlightDataState } from '@/stores/flight_data'
-import { useVesselStore } from '@/stores/vessels';
+import { useFlightDataStore, type FlightDataState } from '@/stores/flight_data'
+import { getVesselHistoric, useVesselStore, type Vessel } from '@/stores/vessels';
 import { getValues, type AggregationLevels } from '@/helper/timeTree';
 import { useSelectedPart } from './flightDashboardElemStoreTypes';
 import { DASHBOARD_WIDGET_ID } from '../misc/dashboard/DashboardComposable';
 import { useFlightViewState, type TimeRange } from '@/composables/useFlightView';
+import { useFlightStore } from '@/stores/flight';
 
 const divID = `chart_div${Math.floor(Math.random() * 1000000)}`
 
@@ -30,38 +34,60 @@ if (!dashboardWidgetId)
 
 const { vesselId, flightId, timeRange, resolution, live } = useFlightViewState()
 
-const throttledTimeRange = ref<TimeRange>(timeRange.value)
-watchDebounced(timeRange, v => throttledTimeRange.value = v, { immediate: true, deep: true, debounce: 200, maxWait: 500 })
-
 const vesselPartId = useSelectedPart(dashboardWidgetId)
 
 const realtime = ref(false)
 
-const { store: store$, fetchFlightDataInTimeFrame } = useFlightDataStore()
+const { store: store$, fetchFlightDataInTimeFrame, getOrInitStore } = useFlightDataStore()
 
 const vesselStore = useVesselStore()
-vesselStore.fetchVesselsIfNecessary()
-const getVessel = vesselStore.getVessel
 
-const part = computed(() => getVessel(vesselId.value)?.parts.find(p => p._id === vesselPartId.value))
+const flightStore = useFlightStore()
+
+const flight = computed(() => vesselId && flightId ? flightStore.vesselFlights[vesselId.value]?.flights[flightId.value]?.flight : undefined)
+
+const vessel = ref<Vessel | undefined>(undefined)
+
+watch(flight, f => {
+    if(!f)
+        return
+    vesselStore.fetchHistoricVessel(f._vessel_id, f._vessel_version)
+    watch(getVesselHistoric(vesselStore, f._vessel_id, f._vessel_version), v =>{ 
+        if(v?.entity)
+            vessel.value = v.entity
+    }, {immediate: true, deep: true} )
+}, {immediate: true, deep: true})
 
 const data: Ref<FlightDataState | undefined> = shallowRef(undefined)
 
-watch([store$, flightId, vesselPartId], ([store, flight, part]) => {
+let removeOldWatch = undefined as (WatchStopHandle | undefined)
 
-    const id = `${flight}*${part}`
+watch([flightId, vesselPartId], ([flight, part]) => {
 
-    data.value = store.flight_data?.[id]
+    if(!part)
+        return
 
-    triggerRef(data)
+    if(removeOldWatch)
+        removeOldWatch()
 
-}, { immediate: true, deep: true })
+    removeOldWatch = watch(getOrInitStore(flight, part), d => { data.value = d; triggerRef(data)}, {immediate: true, deep: false})
+
+}, { immediate: true, deep: false })
 
 const chart$ = ref<Chart | undefined>(undefined)
 const prev$ = ref<string[] | undefined>(undefined)
 
+let prevMax = undefined as (undefined | number)
+let prevMin = undefined as (undefined | number)
+let appendCount = 0
+const MAX_APPEND = 10 // After how many chart updates the data should be reset
+
+const frameTime = ref(0)
+let lastLoadTime = Date.now()
+
 function loadChartData(chart: Chart, flightData: FlightDataState | undefined, range: TimeRange, resolution: AggregationLevels | 'smallest', isLive: boolean) {
 
+    const startTime = Date.now()
 
     if (!flightData) {
 
@@ -72,53 +98,71 @@ function loadChartData(chart: Chart, flightData: FlightDataState | undefined, ra
         return
     }
 
-    const times = ['time'] as (string | Date)[]
+    let times = ['time'] as (string | Date)[]
     const data = {} as { [seriesName: string]: (string | number | boolean | number[])[] }
 
     const curMeasurements = resolution === 'smallest' ?
         getValues(flightData.measurements, range.start, range.end)
         : getValues(flightData.measurements, range.start, range.end, true, resolution)
 
-    curMeasurements.forEach(x => {
+    const afterQueryTree = Date.now()
 
-        const r = x
+    let onlyAppend = true;
+
+    for(const r of curMeasurements){
 
         const date = r.getDateTime()
 
+        const curTime = date.getTime()
+
         if (!date)
-            return;
+            continue;
 
-        if (date.getTime() < range.start.getTime())
-            return;
+        if (curTime < range.start.getTime())
+            continue;
 
-        if (date.getTime() > range.end.getTime())
-            return;
+        if (curTime > range.end.getTime())
+            continue;
+
+        if (prevMin && curTime < prevMin)
+            onlyAppend = false
 
         times.push(date)
-        Object.keys(r.measured_values).forEach(s => {
-            const value = r.measured_values[s]
+        for(const s of Object.keys(r.measurements_aggregated)){
+            const value = r.measurements_aggregated[s]
 
-            const valueActual = isAggregatedMeasurement(value) ? (value.avg ?? value.min ?? value.max) : value
-
+            const valueActual = value[0] ?? value[2] ?? value[2]
 
             if (!data[s])
                 data[s] = [s]
 
             if(typeof valueActual === 'number'){
-                const valueTriple = isAggregatedMeasurement(value) ? [value.min ?? value.avg, value.avg, value.max ?? value.avg] : [value, value, value]
+                const valueTriple = [ value[2], value[0], value[1] ]
                 data[s].push(valueTriple as number[])
-                return
+                continue
             }
             if (typeof valueActual === 'string'){
                 data[s].push(0)
-                return
+                continue
             }
             
-                data[s].push(valueActual)
+            data[s].push(valueActual)
+        }
+    }
 
-        })
-    })
+    if(appendCount > MAX_APPEND)
+        onlyAppend = false
 
+    if(onlyAppend && prevMax){
+        let i = 1
+        while(i < times.length && (times[i] as Date).getTime() < prevMax)
+            i++
+        times = ['time', ...times.slice(i)]
+        for(const key in data)
+            data[key] = [key, ...data[key].slice(i)]
+    }
+
+    const afterDataPrepare = Date.now()
 
     chart.load({
         columns: [
@@ -126,10 +170,29 @@ function loadChartData(chart: Chart, flightData: FlightDataState | undefined, ra
             ...Object.keys(data).map(k => data[k])
         ],
         unload: prev$.value?.filter(p => !data[p]),
-        append: false,
+        append: onlyAppend,
     })
+    chart.config('axis.x.min', range.start.getTime(), false)
+    chart.config('axis.x.max', range.end.getTime(), false)
+
+
+    const afterChartLoad = Date.now()
 
     prev$.value = [...Object.keys(data)]
+
+    console.log(`Triggered chart reload for ${vesselPartId.value}. Took ${afterChartLoad - startTime}ms in total (${afterQueryTree-startTime}ms query, ${afterDataPrepare - afterQueryTree}ms data preparation and ${afterChartLoad-afterDataPrepare}ms for the chart) `)
+
+    frameTime.value = afterChartLoad - lastLoadTime
+
+    lastLoadTime = afterChartLoad
+
+    prevMin = range.start.getTime()
+    prevMax = times.length > 1 ? (times[times.length-1] as Date).getTime() : prevMax
+    if(onlyAppend)
+        appendCount++
+    else
+        appendCount = 0
+
 }
 
 onMounted(() => {
@@ -168,6 +231,9 @@ onMounted(() => {
                 }
             },
         },
+        point: {
+            r: 1
+        },
         zoom: {
             enabled: zoom(),
         },
@@ -179,46 +245,55 @@ onMounted(() => {
 
     chart$.value = chart
 
-    watch(timeRange, range => {
+    // watch(timeRange, range => {
 
-        const x = chart.x() as unknown as { [series: string]: Date[] }
+    //     const x = chart.x() as unknown as { [series: string]: Date[] }
 
-        const availableSeries = Object.keys(x)
+    //     const availableSeries = Object.keys(x)
 
-        if (!availableSeries || availableSeries.length < 1)
-            return
+    //     if (!availableSeries || availableSeries.length < 1)
+    //         return
 
-        const usedSeries = availableSeries.map(s => x[s]).flat()
+    //     const usedSeries = availableSeries.map(s => x[s]).flat()
 
-        if(usedSeries.length < 1)
-            return
+    //     if(usedSeries.length < 1)
+    //         return
 
-        let minDelta = Number.MAX_SAFE_INTEGER
-        let min = usedSeries[0]
+    //     let minDelta = Number.MAX_SAFE_INTEGER
+    //     let min = usedSeries[0]
 
-        for (const s of usedSeries){
-            const cur = Math.abs(s.getTime() - range.cur.getTime())
-            if(cur > minDelta)
-                continue;
+    //     for (const s of usedSeries){
+    //         const cur = Math.abs(s.getTime() - range.cur.getTime())
+    //         if(cur > minDelta)
+    //             continue;
 
-            minDelta = cur
-            min = s
-        }
+    //         minDelta = cur
+    //         min = s
+    //     }
 
-        chart.tooltip.show({
-            x: min
-        });
-    }, { immediate: true, deep: true })
+    //     setTimeout(() =>{
 
-    watchDebounced([data, throttledTimeRange, resolution, live], ([flightData, range, resolution, isLive]) => {
+    //         // Fix for a bug in the chart library. The chart library doesn't check if the
+    //         // given x value still exists on the chart, if not it cras
+    //         const chartInternal = chart as unknown as { internal: { getIndexByX(x: any): any} }
+    //         if(!chartInternal.internal.getIndexByX(min))
+    //             return
 
-        if (!flightData)
+    //         chart.tooltip.show({
+    //             x: min
+    //         })
+    //     });
+    // }, { immediate: true, deep: true })
+
+    watchDebounced([data, timeRange, resolution, live], ([flightData, range, resolution, isLive]) => {
+
+        if (!flightData || !range)
             return
 
         loadChartData(chart, flightData, range, resolution, isLive)
 
 
-    }, { immediate: true, deep: true, debounce: 200, maxWait: 500 })
+    }, { immediate: true, deep: false, debounce: 50, maxWait: 100 })
 
 })
 

@@ -389,7 +389,7 @@ let timeOfLastAdvance: number | undefined = undefined
 
 function advanceTime() {
 
-    if (displayCurrentPreview.value)
+    if (displayCurrentPreview.value || displayMinPreview.value || displayMaxPreview.value)
         return
 
     const previousTime = timeOfLastAdvance

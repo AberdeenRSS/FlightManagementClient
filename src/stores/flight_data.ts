@@ -1,6 +1,6 @@
 import { fetchRssApi, useRssWebSocket } from '@/composables/api/rssFlightServerApi';
 import { defineStore } from 'pinia'
-import { computed, reactive, ref, shallowRef, triggerRef, watch, type Ref } from 'vue';
+import { computed, reactive, ref, shallowRef, triggerRef, watch, type Ref, type ShallowRef } from 'vue';
 import { waitUntil } from '@/helper/reactivity'
 import { until, type UseFetchReturn } from '@vueuse/core';
 import type { LoadingStates } from '@/helper/loadingStates';
@@ -13,23 +13,26 @@ function getMeasurementRequestUrl(flightId: string, vesselPart: string, start: D
         return `/flight_data/get_aggregated_range/${flightId}/${vesselPart}/${resolution}/${start.toISOString()}/${end.toISOString()}`
 }
 
-const store = shallowRef({
-    flight_data: {} as { [index: string]: FlightDataState },
-    realtimeSubscription: false
-})
+const MinRealtimePeriod = 2000
+
+const store = {
+    flight_data: {} as { [index: string]: ShallowRef<FlightDataState> },
+    realtimeSubscription: ref<boolean>(false),
+    last_data_receive: ref(undefined as number | undefined)
+}
 
 function getOrInitStore(flightId: string, vesselPart: string) {
     const index = `${flightId}*${vesselPart}`
 
-    let thisFlightData = store.value.flight_data[index]
+    let thisFlightData = store.flight_data[index]
 
     if (!thisFlightData) {
-        thisFlightData = store.value.flight_data[index] = {
+        thisFlightData = store.flight_data[index] = shallowRef<FlightDataState>({
             measurements: { start: new Date(), members: {}, loadingState: 'NOT_REQUESTED', aggregationLevel: ETERNITY, requested: {} },
             _flight_id: flightId,
             _vessel_part: vesselPart,
             loading: 'REQUESTED',
-        }
+        })
     }
 
     return thisFlightData
@@ -37,12 +40,12 @@ function getOrInitStore(flightId: string, vesselPart: string) {
 
 async function fetchFlightDataInTimeFrame(flightId: string, vesselPart: string, start: Date, end: Date, resolution: Exclude<AggregationLevels | 'smallest', 'eternity'>) {
 
-    if (!store.value.flight_data)
-        store.value.flight_data = {}
+    if (!store.flight_data)
+        store.flight_data = {}
 
     const thisFlightData = getOrInitStore(flightId, vesselPart)
 
-    const rangesToLoad = getMissingRangesRecursive(thisFlightData.measurements, start, end, resolution, true)
+    const rangesToLoad = getMissingRangesRecursive(thisFlightData.value.measurements, start, end, resolution, true)
 
     if (rangesToLoad.length < 1)
         return
@@ -60,26 +63,26 @@ async function fetchFlightDataInTimeFrame(flightId: string, vesselPart: string, 
         return
     })
 
-    const newData: FlightDataChunkAggregated[] = requests.map(r => (JSON.parse(r.data.value as string) as FlightDataChunkAggregated[])).flat()
+    const newData: Measurements[] = requests.map(r => (JSON.parse(r.data.value as string) as Measurements[])).flat()
 
-    integrateData(newData, thisFlightData, resolution);
+    integrateData(newData, thisFlightData.value, resolution);
 
-    triggerRef(store)
+    triggerRef(thisFlightData)
 
 }
 
 export function useFlightDataStore() {
 
 
-    return { store, fetchFlightDataInTimeFrame, subscribeRealtime }
+    return { store, fetchFlightDataInTimeFrame, subscribeRealtime, getOrInitStore }
 }
 
 async function subscribeRealtime(flightId: string) {
 
-    if (store.value.realtimeSubscription)
+    if (store.realtimeSubscription.value)
         return
 
-    store.value.realtimeSubscription = true
+    store.realtimeSubscription.value = true
 
     const ws$ = useRssWebSocket()
 
@@ -88,21 +91,28 @@ async function subscribeRealtime(flightId: string) {
         if (!ws)
             return
 
-        ws.on('flight_data.new', (data: wsFlightDataMsg) => {
+        // const now = Date.now()
 
-            const flightData = getOrInitStore(data.flight_id, data.vessel_part)
+        // if (store.last_data_receive.value && (now - store.last_data_receive.value) < MinRealtimePeriod)
+        //     return
+
+        // store.last_data_receive.value = now
+
+        ws.on('flight_data.new', (data: wsFlightDataMsg) => {
 
             data.measurements.forEach(d => {
 
-                const asTimeData: FlightDataChunk & TimeTreeData = {
+                const flightData = getOrInitStore(data.flight_id, d.part_id)
+
+                const asTimeData: Measurements & TimeTreeData = {
                     ...d,
-                    getDateTime() { return typeof this._datetime === 'string' ? new Date(this._datetime) : this._datetime }
+                    getDateTime() { return new Date(this._start_time) }
                 }
 
-                insertValue(flightData.measurements, asTimeData)
-            })
+                insertValue(flightData.value.measurements, asTimeData)
 
-            triggerRef(store)
+                triggerRef(flightData)
+            })
 
         })
 
@@ -118,63 +128,42 @@ async function subscribeRealtime(flightId: string) {
 
 }
 
-function integrateData(newData: (FlightDataChunkAggregated[] | FlightDataChunk[]), store: FlightDataState, resolution: Exclude<AggregationLevels | 'smallest', 'eternity'>) {
+function integrateData(newData: (Measurements[]), store: FlightDataState, resolution: Exclude<AggregationLevels | 'smallest', 'eternity'>) {
 
     newData.forEach(d => {
 
-        if (resolution == 'smallest') {
-            const asTimeData: FlightDataChunk & TimeTreeData = {
-                ...d as FlightDataChunk,
-                getDateTime() { return typeof this._datetime === 'string' ? new Date(this._datetime) : this._datetime }
-            }
-            insertValue(store.measurements, asTimeData)
+        const asTimeData: Measurements & TimeTreeData = {
+            ...d,
+            getDateTime() { return typeof this._start_time === 'string' ? new Date(this._start_time) : this._start_time }
         }
-        else {
-            const asTimeData: FlightDataChunkAggregated & TimeTreeData = {
-                ...d as FlightDataChunkAggregated,
-                getDateTime() { return typeof this.start_date === 'string' ? new Date(this.start_date) : this.start_date }
-            }
-            insertValue(store.measurements, asTimeData, resolution)
-        }
+        insertValue(store.measurements, asTimeData, resolution != 'smallest' ? resolution : undefined)
+        
     })
 
 }
 
 type wsFlightDataMsg = {
     flight_id: string,
-    vessel_part: string,
-    measurements: FlightDataChunk[]
+    measurements: Measurements[]
 }
-
-
 
 export type MeasurementTypes = string | number | boolean
 
-export type AggregatedMeasurements = { min: MeasurementTypes, max: MeasurementTypes, avg: MeasurementTypes }
-
-export type FlightDataChunk = { _datetime: Date | string, measured_values: { [index: string]: MeasurementTypes } }
-
-export type FlightDataChunkAggregated = { start_date: Date | string, measured_values: { [index: string]: AggregatedMeasurements } }
-
-export type MaybeFlightDataChunk = { [timeSpan: string]: FlightDataChunk | 'LOADING' }
-
-export type MaybeFlightDataChunkAggregated = { [timeSpan: string]: FlightDataChunkAggregated | 'LOADING' }
-
-
-export function isAggregatedMeasurement(obj: unknown): obj is AggregatedMeasurements {
-
-    if (typeof obj !== 'object')
-        return false
-
-    const asDict = obj as { [p in 'avg' | 'min' | 'max']: unknown }
-
-    return 'avg' in asDict || 'min' in asDict || 'max' in asDict
+export type Measurements = { 
+    measurements: [ number, MeasurementTypes[] ][],
+    measurements_aggregated: {[seriesName:  string]: [ number, number, number ] },
+    part_id: string,
+    _start_time: string,
+    _end_time: string
 }
+
+export type MaybeFlightDataChunk = { [timeSpan: string]: Measurements | 'LOADING' }
+
 
 export type FlightDataState = {
     _flight_id: string;
     _vessel_part: string;
-    measurements: TimeTreeNode<FlightDataChunk & TimeTreeData, FlightDataChunkAggregated & TimeTreeData>;
+    measurements: TimeTreeNode<Measurements & TimeTreeData, Measurements & TimeTreeData>;
     loading: LoadingStates;
 }
 

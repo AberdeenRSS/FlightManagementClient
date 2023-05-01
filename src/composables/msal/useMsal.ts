@@ -18,7 +18,7 @@ const msalConfig: msal.Configuration = {
         clientId: clientId,
         authority: `https://login.microsoftonline.com/${tenantId}`,
         // knownAuthorities: ['https://login.microsoftonline.com/ed38e9ed-ef79-4415-b1aa-36e883726313/oauth2/v2.0/authorize'],
-        redirectUri: baseUrl
+        redirectUri: window.location.href
     },
     cache: {
         cacheLocation: 'localStorage'

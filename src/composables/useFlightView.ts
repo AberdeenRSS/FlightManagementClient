@@ -3,7 +3,7 @@ import { ref } from "vue";
 
 export type TimeRange = { start: Date, end: Date, cur: Date }
 
-const timeRange = ref<TimeRange>({ start: new Date(Date.now()), end: new Date(Date.now()), cur: new Date(Date.now()) })
+const timeRange = ref<TimeRange | undefined>()
 const vesselId = ref<string>('')
 const flightId = ref<string>('')
 const live = ref<boolean>(false)
@@ -16,7 +16,9 @@ export function useFlightViewState() {
 
 export function useProvideFlightView() {
 
-    function setTimeRange(range: TimeRange) {
+    function setTimeRange(range: TimeRange | undefined) {
+        if(!range)
+            return
         timeRange.value = range
     }
 

@@ -47,6 +47,8 @@ export const ALL_STORE_PLACEHOLDER = 'ALL_TYPES_OR_PARTS'
 
 async function fetchCommandsInTimeFrame(flightId: string, start: Date, end: Date, vesselPart?: string, commandType?: string,) {
 
+    return
+
     if(!store.value.commands)
         store.value.commands = {}
 

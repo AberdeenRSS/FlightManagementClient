@@ -7,13 +7,14 @@
 <script lang="ts" setup>
 
 import { useComponentConfiguration } from '@/composables/componentsConfiguration/componentConfiguration';
-import { computed, defineProps, inject, toRefs } from 'vue'
+import { computed, defineProps, inject, ref, toRefs, watch } from 'vue'
 import { DASHBOARD_WIDGET_ID } from '../misc/dashboard/DashboardComposable';
 import { useWidgetData, useSelectedPart } from './flightDashboardElemStoreTypes';
-import { useVesselStore } from '@/stores/vessels'
+import { getVesselHistoric, useVesselStore, type Vessel } from '@/stores/vessels'
 import { useFlightViewState } from '@/composables/useFlightView';
+import { useFlightStore } from '@/stores/flight';
 
-const { vesselId } = useFlightViewState()
+const { vesselId, flightId } = useFlightViewState()
 
 const dashboardWidgetId = inject(DASHBOARD_WIDGET_ID)
 
@@ -22,8 +23,23 @@ if (!dashboardWidgetId)
 
 const widgetData = useWidgetData(dashboardWidgetId)
 
-const { getVessel } = useVesselStore()
-const vessel = computed(() => getVessel(vesselId.value))
+const vesselStore = useVesselStore()
+
+const flightStore = useFlightStore()
+
+const flight = computed(() => vesselId && flightId ? flightStore.vesselFlights[vesselId.value]?.flights[flightId.value]?.flight : undefined)
+
+const vessel = ref<Vessel | undefined>(undefined)
+
+watch(flight, f => {
+    if(!f)
+        return
+    vesselStore.fetchHistoricVessel(f._vessel_id, f._vessel_version)
+    watch(getVesselHistoric(vesselStore, f._vessel_id, f._vessel_version), v =>{ 
+        if(v?.entity)
+            vessel.value = v.entity
+    }, {immediate: true, deep: true} )
+}, {immediate: true, deep: true})
 
 const selectedPartId = useSelectedPart(dashboardWidgetId)
 const selectedPart = computed(() => vessel.value?.parts.find(p => p._id === selectedPartId.value))

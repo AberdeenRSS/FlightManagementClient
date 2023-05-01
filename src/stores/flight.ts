@@ -122,6 +122,7 @@ export type CommandInfo = {
 export type Flight = {
     _id: string;
     _vessel_id: string;
+    _vessel_version: number;
     name: string;
     start: string;
     end: string | undefined;
