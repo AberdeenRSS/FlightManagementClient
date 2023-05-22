@@ -18,12 +18,12 @@
             </tr>
         </thead>
         <tbody>
-            <tr v-for="(item, key) in vesselStore.vessels" :key="key">
-                <td><b>{{ item.entity!.name }}</b></td>
-                <td>{{ item.entity!._version }}</td>
-                <td>{{ item.entity!.parts.length }}</td>
+            <tr  v-for="(item, key) of vessels" :key="key">
+                <td><b>{{ item.entity?.name }}</b></td>
+                <td>{{ item.entity?._version }}</td>
+                <td>{{ item.entity?.parts.length }}</td>
 
-                <td><v-btn @click="router.push(`./vessel/details/${item.entity!._id}`)">Flights</v-btn></td>
+                <td><v-btn @click="router.push(`./vessel/details/${item.entity?._id}`)">Flights</v-btn></td>
             </tr>
         </tbody>
     </v-table>
@@ -31,13 +31,16 @@
 </template>
 
 <script setup lang="ts">
-import { useVesselStore } from '@/stores/vessels';
+import { useObservableShallow } from '@/helper/reactivity';
+import { fetchVesselsIfNecessary, getVessels } from '@/stores/vessels';
+
 import { useRouter } from 'vue-router';
 
-const vesselStore = useVesselStore()
 
 const router = useRouter()
 
-vesselStore.fetchVesselsIfNecessary()
+const vessels = useObservableShallow(getVessels(), {initialValue: undefined})
+
+fetchVesselsIfNecessary()
 
 </script>

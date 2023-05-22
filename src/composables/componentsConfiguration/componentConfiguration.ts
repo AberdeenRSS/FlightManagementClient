@@ -18,7 +18,7 @@ export interface ComponentDefinition {
 
     iconId: string
 
-    flightDataConfig: {[seriesName: string]: FlightDataConfig<any>}
+    flightDataConfig: {[seriesName: string]: FlightDataConfig<string> | FlightDataConfig<number>}
 }
 
 const configurations: {[id: string]: ComponentDefinition} = {

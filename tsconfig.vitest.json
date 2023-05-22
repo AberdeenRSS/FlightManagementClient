@@ -6,6 +6,6 @@
     "lib": [],
     "types": ["node", "jsdom"],
     "experimentalDecorators": true,
-
-  }
+    "strict": true,
+  },
 }

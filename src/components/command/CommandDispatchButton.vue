@@ -1,5 +1,7 @@
 <template>
-    <v-btn v-if="!loading" size="medium" :disabled="!commandType || !part" variant="outlined" color="error" @click="onDispatchCommand">Send</v-btn>
+    <v-btn class="dispatch-btn" v-if="!loading" size="medium" :disabled="!commandType || !part || !commandAvailable" variant="outlined" color="error" @click="onDispatchCommand">
+        {{ text ?? 'Send' }}
+    </v-btn>
 
     <v-progress-circular v-if="loading" indeterminate color="primary"></v-progress-circular>
 
@@ -10,15 +12,19 @@
     </v-tooltip>
 </template>
 
-<style lang="scss"></style>
+<style lang="scss">
+
+</style>
 
 <script lang="ts" setup>
 
 import { useFlightViewState } from '@/composables/useFlightView';
-import { waitUntil } from '@/helper/reactivity';
+import { fromImmediate, useObservableShallow, waitUntil } from '@/helper/reactivity';
+import { getFlightAndHistoricVessel } from '@/stores/combinedMethods';
 import { useCommandStore, type Command } from '@/stores/commands';
+import { combineLatest, map, of, type Observable } from 'rxjs';
 import { v4 } from 'uuid';
-import { defineProps, ref, toRefs, watch, type Ref } from 'vue';
+import { ref, toRefs } from 'vue';
 
 const props = defineProps({
     commandType: {
@@ -28,14 +34,35 @@ const props = defineProps({
     part: {
         type: String,
         default: undefined
+    },
+    text: {
+        type: String
     }
 })
 
-const { commandType, part } = toRefs(props)
+const { commandType, part, text } = toRefs(props)
 
-const { flightId } = useFlightViewState()
+const { flightId, vesselId } = useFlightViewState()
+
+const  {  flight$ } = getFlightAndHistoricVessel(vesselId, flightId)
+// const part$ = getPart(vessel$, part)
 
 const { dispatchCommand } = useCommandStore()
+
+let commandAvailable$: Observable<boolean>;
+
+if(part && commandType){
+
+    commandAvailable$ = combineLatest([flight$, fromImmediate(part), fromImmediate(commandType)]).pipe(
+        map(([f, partId, t]) => t ? f?.available_commands[t].supporting_parts?.some(p => p === partId) : undefined),
+        map(t => t ?? false)
+    )
+}
+else{
+    commandAvailable$ = of(false)
+}
+
+const commandAvailable = useObservableShallow(commandAvailable$)
 
 const loading = ref<boolean>(false)
 

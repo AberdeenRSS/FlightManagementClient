@@ -1,102 +1,119 @@
 import { fetchRssApi, useRssWebSocket } from '@/composables/api/rssFlightServerApi';
-import { defineStore } from 'pinia'
-import { computed, reactive, ref, watch, type Ref } from 'vue';
-import { waitUntil } from '@/helper/reactivity'
+import { asObservable, fromImmediate } from '@/helper/reactivity';
 import { until } from '@vueuse/core';
+import { combineLatest, map, of, shareReplay, switchMap, type Observable } from 'rxjs';
+import { ref, shallowRef, triggerRef, watch, type Ref, type ShallowRef } from 'vue';
 
-export const useFlightStore = defineStore({
-    id: 'flights',
-    state: () => ({
-        vesselFlights: {} as { [index: string]: FlightsState },
-        realtimeSubscription: false
-    }),
-    actions: {
-        async fetchFlightsForVesselIfNecessary(vesselId: string) {
+export const state = {
+    vesselFlights: {} as { [index: string]: ShallowRef<FlightsState> },
+    realtimeSubscription: ref(false)
+}
 
-            if (!this.vesselFlights[vesselId])
-                this.vesselFlights[vesselId] = { flights: {}, loading: 'NOT_REQUESTED' }
+export function getOrInitStore(vesselId: string){
+    state.vesselFlights[vesselId] = state.vesselFlights[vesselId] ?? shallowRef({ flights: {}, loading: 'NOT_REQUESTED'} )
+    return state.vesselFlights[vesselId]
+}
 
-            const existingEntry = this.vesselFlights[vesselId]
+export function getFlights(vesselId$:  Observable<string> | string){
+    return asObservable(vesselId$).pipe(
+        switchMap(v => fromImmediate(getOrInitStore(v))),
+    )
+}
 
-            // Return if the data was already successfully requested
-            if (existingEntry && existingEntry.loading !== 'NOT_REQUESTED' && existingEntry.loading !== 'ERROR')
-                return;
+export function getFlight(vesselId$:  Observable<string> | string, flightId$: Observable<string> | string){
+    return combineLatest([asObservable(flightId$), getFlights(vesselId$)]).pipe(
+        map(([f, flights]) => flights.flights[f]?.flight),
+        switchMap(flight => flight ? fromImmediate(flight) : of(undefined)),
+        shareReplay()
+    )
+}
 
-            existingEntry.loading = 'REQUESTED'
+export async function fetchFlightsForVesselIfNecessary(vesselId: string) {
 
-            const { data, error, isFinished } = await fetchRssApi(`/flight/get_all/${vesselId}`)
+    const storeObj = getOrInitStore(vesselId)
+    const existingEntry = storeObj.value
 
-            await until(isFinished).toBe(true)
+    // Return if the data was already successfully requested
+    if (existingEntry && existingEntry.loading !== 'NOT_REQUESTED' && existingEntry.loading !== 'ERROR')
+        return;
 
-            if (error.value) {
-                existingEntry.loading = 'ERROR'
-                console.log(error)
-                return
-            }
+    existingEntry.loading = 'REQUESTED'
 
-            JSON.parse(data.value as string).forEach((v: Flight) => {
+    const { data, error, isFinished } = await fetchRssApi(`/flight/get_all/${vesselId}`)
 
-                // Don't overwrite vessels already loaded
-                if (existingEntry.flights[v._id])
-                    return
+    await until(isFinished).toBe(true)
 
-                existingEntry.flights[v._id] = {
-                    flight: v,
-                    loading: 'NOT_REQUESTED'
-                }
-            });
-
-            existingEntry.loading = 'LOADED'
-        },
-        async subscribeRealtime() {
-
-            if (this.realtimeSubscription)
-                return
-
-            this.realtimeSubscription = true
-
-            const ws$ = useRssWebSocket()
-
-            watch(ws$, ws => {
-
-                if (!ws)
-                    return
-
-                ws.on('flights.new', (data: Flight) => {
-
-                    let vesselFlights = this.vesselFlights[data._vessel_id]
-
-                    if (!vesselFlights)
-                        vesselFlights = this.vesselFlights[data._vessel_id] = { flights: {}, loading: 'NOT_REQUESTED' }
-
-                    vesselFlights.flights[data._id] = { flight: data, loading: 'LOADED' }
-
-                })
-
-                ws.on('flights.update', (data: Flight) => {
-
-                    let vesselFlights = this.vesselFlights[data._vessel_id]
-
-                    if (!vesselFlights)
-                        vesselFlights = this.vesselFlights[data._vessel_id] = { flights: {}, loading: 'NOT_REQUESTED' }
-
-                    vesselFlights.flights[data._id] = { flight: data, loading: 'LOADED' }
-
-                })
-
-                ws.on('connect', () => {
-                    ws.emit('flights.subscribe')
-
-                })
-
-                ws.emit('flights.subscribe')
-
-
-            }, { immediate: true })
-
-        }
+    if (error.value) {
+        existingEntry.loading = 'ERROR'
+        console.log(error)
+        return
     }
-})
+
+    JSON.parse(data.value as string).forEach((v: Flight) => {
+
+        // Don't overwrite vessels already loaded
+        if (existingEntry.flights[v._id])
+            return
+
+        existingEntry.flights[v._id] = {
+            flight: shallowRef(v),
+            loading: ref('NOT_REQUESTED')
+        }
+    });
+
+    existingEntry.loading = 'LOADED'
+
+    triggerRef(storeObj)
+}
+export async function subscribeRealtime() {
+
+    if (state.realtimeSubscription.value)
+        return
+
+    state.realtimeSubscription.value = true
+
+    const ws$ = useRssWebSocket()
+
+    watch(ws$, ws => {
+
+        if (!ws)
+            return
+
+        ws.on('flights.new', (data: Flight) => {
+
+            const vesselFlights = getOrInitStore(data._vessel_id)
+
+            vesselFlights.value.flights[data._id] = { flight: shallowRef(data), loading: ref('LOADED') }
+
+            triggerRef(vesselFlights)
+
+        })
+
+        ws.on('flights.update', (data: Flight) => {
+
+            const vesselFlights = getOrInitStore(data._vessel_id)
+
+            const flightState = vesselFlights.value.flights[data._id]
+            
+            flightState.flight.value = data
+
+            flightState.loading.value = 'LOADED'
+
+            triggerRef(flightState.flight)
+
+        })
+
+        ws.on('connect', () => {
+            ws.emit('flights.subscribe')
+
+        })
+
+        ws.emit('flights.subscribe')
+
+
+    }, { immediate: true })
+
+}
 
 export type LoadingStates =
     'NOT_REQUESTED'
@@ -104,19 +121,15 @@ export type LoadingStates =
     | 'LOADED'
     | 'ERROR'
 
-function shouldRequest(l: LoadingStates) {
-    return l === 'NOT_REQUESTED' || l === 'ERROR'
-}
-
 export type CommandInfo = {
 
     supported_on_vehicle_level: boolean
 
     supporting_parts: string[]
 
-    payload_schema: any;
+    payload_schema: unknown;
 
-    response_schema: any
+    response_schema: unknown
 }
 
 export type Flight = {
@@ -127,11 +140,12 @@ export type Flight = {
     start: string;
     end: string | undefined;
     available_commands: { [commandType: string]: CommandInfo }
+    measured_parts: { [part_id: string]: { name: string, type: 'string' | 'int' | 'float' }[] }
 }
 
 type FlightState = {
-    flight: Flight;
-    loading: LoadingStates
+    flight: ShallowRef<Flight>;
+    loading: Ref<LoadingStates>
 }
 
 type FlightsState = {

@@ -17,5 +17,11 @@ module.exports = {
         "plugin:cypress/recommended"
       ]
     }
-  ]
+  ],
+  "rules": {
+    "@typescript-eslint/no-non-null-assertion": "off",
+    "no-unused-vars": "off",
+    "@typescript-eslint/no-unused-vars": ["warn", {"varsIgnorePattern": "^_", "argsIgnorePattern": "^_" }],
+    "vue/no-ref-as-operand": "off"
+  }
 }

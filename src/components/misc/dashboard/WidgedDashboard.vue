@@ -19,10 +19,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, toRefs, type Ref, useSlots, watch, provide, onMounted, getCurrentInstance } from 'vue';
-import DashboardElement from './DashboardElement.vue'
-import { DASHBOARD_ID, useDashboardStore, type Widget, type WidgetMatrix, type WidgetSlot } from './DashboardComposable'
-import { v4 } from 'uuid'
+import { v4 } from 'uuid';
+import { computed, toRefs, watch } from 'vue';
+import { useDashboardStore, type WidgetSlot } from './DashboardComposable';
+import DashboardElement from './DashboardElement.vue';
 
 type HoverClasses = '' | 'hover-success' | 'hover-failure'
 
@@ -33,7 +33,6 @@ const props = defineProps({
     }
 })
 
-const passedSlots = useSlots()
 const margin = 0
 
 const { dashboardId } = toRefs(props)
@@ -68,7 +67,7 @@ function getHoverClass(item: WidgetSlot): HoverClasses {
 
 function onDragover(event: DragEvent) {
     event.preventDefault()
-    event.stopPropagation()
+    // event.stopPropagation()
 }
 
 function onDragleave(event: DragEvent, item: WidgetSlot) {
@@ -126,12 +125,8 @@ function onAddWidget(col: WidgetSlot) {
 
 .drop-row {
     border: 1px solid red;
-}
+}*/
 
-.drop-container {
-    border: 1px solid blue;
-
-} */
 
 .widget-placeholder-container {
     width: 100%;

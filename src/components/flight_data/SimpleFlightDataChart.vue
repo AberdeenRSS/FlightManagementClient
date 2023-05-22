@@ -13,17 +13,14 @@
 </style>
 
 <script setup lang="ts">
-import { fetchRssApi } from '@/composables/api/rssFlightServerApi';
-import { until, watchDebounced, watchThrottled } from '@vueuse/core';
-import { computed, onMounted, reactive, toRefs, watch, onUnmounted, ref, type Ref, type WatchStopHandle, inject, shallowRef, triggerRef } from 'vue';
-import bb, { areaLineRange, line, scatter, zoom, type Chart } from "billboard.js";
-import { useFlightDataStore, type FlightDataState } from '@/stores/flight_data'
-import { getVesselHistoric, useVesselStore, type Vessel } from '@/stores/vessels';
-import { getValues, type AggregationLevels } from '@/helper/timeTree';
-import { useSelectedPart } from './flightDashboardElemStoreTypes';
-import { DASHBOARD_WIDGET_ID } from '../misc/dashboard/DashboardComposable';
 import { useFlightViewState, type TimeRange } from '@/composables/useFlightView';
-import { useFlightStore } from '@/stores/flight';
+import { getValues, type AggregationLevels } from '@/helper/timeTree';
+import { useFlightDataStore, type FlightDataState } from '@/stores/flight_data';
+import { watchDebounced } from '@vueuse/core';
+import bb, { areaLineRange, zoom, type Chart } from "billboard.js";
+import { inject, onMounted, onUnmounted, ref, shallowRef, triggerRef, watch, type Ref, type WatchStopHandle } from 'vue';
+import { DASHBOARD_WIDGET_ID } from '../misc/dashboard/DashboardComposable';
+import { useSelectedPart } from './flightDashboardElemStoreTypes';
 
 const divID = `chart_div${Math.floor(Math.random() * 1000000)}`
 
@@ -32,31 +29,16 @@ const dashboardWidgetId = inject(DASHBOARD_WIDGET_ID)
 if (!dashboardWidgetId)
     throw new Error('Resizer not used in within a dashboard')
 
-const { vesselId, flightId, timeRange, resolution, live } = useFlightViewState()
+const { flightId, timeRange, resolution, live } = useFlightViewState()
+
+
+const timeRangeDebounced = shallowRef<TimeRange | undefined>(undefined)
+watchDebounced(timeRange, r => {timeRangeDebounced.value = r ? {...r} : undefined; triggerRef(timeRangeDebounced)}, {immediate: true, deep: true, debounce: 250, maxWait: 2000 })
 
 const vesselPartId = useSelectedPart(dashboardWidgetId)
 
-const realtime = ref(false)
 
-const { store: store$, fetchFlightDataInTimeFrame, getOrInitStore } = useFlightDataStore()
-
-const vesselStore = useVesselStore()
-
-const flightStore = useFlightStore()
-
-const flight = computed(() => vesselId && flightId ? flightStore.vesselFlights[vesselId.value]?.flights[flightId.value]?.flight : undefined)
-
-const vessel = ref<Vessel | undefined>(undefined)
-
-watch(flight, f => {
-    if(!f)
-        return
-    vesselStore.fetchHistoricVessel(f._vessel_id, f._vessel_version)
-    watch(getVesselHistoric(vesselStore, f._vessel_id, f._vessel_version), v =>{ 
-        if(v?.entity)
-            vessel.value = v.entity
-    }, {immediate: true, deep: true} )
-}, {immediate: true, deep: true})
+const { getOrInitStore } = useFlightDataStore()
 
 const data: Ref<FlightDataState | undefined> = shallowRef(undefined)
 
@@ -85,7 +67,7 @@ const MAX_APPEND = 10 // After how many chart updates the data should be reset
 const frameTime = ref(0)
 let lastLoadTime = Date.now()
 
-function loadChartData(chart: Chart, flightData: FlightDataState | undefined, range: TimeRange, resolution: AggregationLevels | 'smallest', isLive: boolean) {
+function loadChartData(chart: Chart, flightData: FlightDataState | undefined, range: TimeRange, resolution: AggregationLevels | 'smallest', _: boolean) {
 
     const startTime = Date.now()
 
@@ -108,6 +90,7 @@ function loadChartData(chart: Chart, flightData: FlightDataState | undefined, ra
     const afterQueryTree = Date.now()
 
     let onlyAppend = true;
+    let anyNew  = false
 
     for(const r of curMeasurements){
 
@@ -126,6 +109,10 @@ function loadChartData(chart: Chart, flightData: FlightDataState | undefined, ra
 
         if (prevMin && curTime < prevMin)
             onlyAppend = false
+            anyNew = true
+
+        if (prevMax && curTime > prevMax)
+            anyNew = true
 
         times.push(date)
         for(const s of Object.keys(r.measurements_aggregated)){
@@ -173,14 +160,14 @@ function loadChartData(chart: Chart, flightData: FlightDataState | undefined, ra
         append: onlyAppend,
     })
     chart.config('axis.x.min', range.start.getTime(), false)
-    chart.config('axis.x.max', range.end.getTime(), false)
+    chart.config('axis.x.max', range.end.getTime(), !anyNew)
 
 
     const afterChartLoad = Date.now()
 
     prev$.value = [...Object.keys(data)]
 
-    console.log(`Triggered chart reload for ${vesselPartId.value}. Took ${afterChartLoad - startTime}ms in total (${afterQueryTree-startTime}ms query, ${afterDataPrepare - afterQueryTree}ms data preparation and ${afterChartLoad-afterDataPrepare}ms for the chart) `)
+    console.debug(`Triggered chart reload for ${vesselPartId.value}. Took ${afterChartLoad - startTime}ms in total (${afterQueryTree-startTime}ms query, ${afterDataPrepare - afterQueryTree}ms data preparation and ${afterChartLoad-afterDataPrepare}ms for the chart) `)
 
     frameTime.value = afterChartLoad - lastLoadTime
 
@@ -223,7 +210,7 @@ onMounted(() => {
         tooltip: {
             format: {
                 title: (x: Date) => `${x.toLocaleTimeString()} ${x.toLocaleDateString()}`,
-                value: function (value, ratio, id) {
+                value: function (value, _, __) {
 
                     if(typeof value === 'number')
                         return value.toPrecision(3)
@@ -285,7 +272,7 @@ onMounted(() => {
     //     });
     // }, { immediate: true, deep: true })
 
-    watchDebounced([data, timeRange, resolution, live], ([flightData, range, resolution, isLive]) => {
+    watchDebounced([data, timeRangeDebounced, resolution, live], ([flightData, range, resolution, isLive]) => {
 
         if (!flightData || !range)
             return
@@ -293,7 +280,7 @@ onMounted(() => {
         loadChartData(chart, flightData, range, resolution, isLive)
 
 
-    }, { immediate: true, deep: false, debounce: 50, maxWait: 100 })
+    }, { immediate: true, deep: false })
 
 })
 

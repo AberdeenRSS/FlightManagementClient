@@ -1,17 +1,15 @@
 // fetch.js
-import { waitUntil } from '@/helper/reactivity'
+import { createFetch, until, type BeforeFetchContext } from '@vueuse/core'
+import { Socket, io } from "socket.io-client"
+import { shallowRef, triggerRef, type Ref } from 'vue'
 import { useMsal, useUserData } from '../msal/useMsal'
-import axios from 'axios'
-import process from 'process'
-import { createFetch, until, useFetch } from '@vueuse/core'
-import { ref, shallowRef, type Ref } from 'vue'
-import { io, Manager, Socket } from "socket.io-client";
 
 
 const baseUri = import.meta.env.VITE_RSS_FLIGHT_SERVER_URL;
 const serverScope = import.meta.env.VITE_RSS_FLIGHT_SERVER_SCOPE;
 
-async function beforeFetch({ options }: { options: any }) {
+
+async function beforeFetch({ options }: BeforeFetchContext): Promise<Partial<BeforeFetchContext>> {
 
     const { activeAccount } = useUserData()
     const { msalInstance } = useMsal()
@@ -22,7 +20,10 @@ async function beforeFetch({ options }: { options: any }) {
     // Get an authentication token to make an authenticated request to the api (should be cached most of the time)
     const token = await msalInstance.value.acquireTokenSilent({ scopes: [serverScope], account: account! })
 
-    options.headers.Authorization = `Bearer ${token.accessToken}`
+    if(!options.headers)
+        options.headers = {} as Record<string, string>
+
+    (options.headers as Record<string, string>)['Authorization'] = `Bearer ${token.accessToken}`
 
     return { options }
 }
@@ -60,7 +61,7 @@ const BASE_NAMESPACE = '__BASE_NAMESPACE__'
 
 export function useRssWebSocket(namespace?: string) {
 
-    if (!socketIoManager[namespace ?? BASE_NAMESPACE]?.value) {
+    if (!socketIoManager[namespace ?? BASE_NAMESPACE]) {
         socketIoManager[namespace ?? BASE_NAMESPACE] = shallowRef(undefined)
         buildNewWebsocketConnection(namespace)
     }
@@ -87,12 +88,11 @@ async function buildNewWebsocketConnection(namespace?: string) {
     })
 
 
-    ws.on('connect', () => console.log('connect'))
-
     ws.on('error', err => {
         console.error(err)
     })
 
+    triggerRef(socketIoManager[namespace ?? BASE_NAMESPACE])
 
     return ws
 }

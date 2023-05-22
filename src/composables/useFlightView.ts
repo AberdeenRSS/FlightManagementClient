@@ -9,9 +9,15 @@ const flightId = ref<string>('')
 const live = ref<boolean>(false)
 const resolution = ref<AggregationLevels | 'smallest'>('minute')
 
+const elementInSettings = ref<[string, string] | undefined>()
+
 export function useFlightViewState() {
 
-    return { timeRange, vesselId, flightId, live, resolution }
+    function setElementInSettings(value: [string, string] | undefined){
+        elementInSettings.value = value
+    }
+
+    return { timeRange, vesselId, flightId, live, resolution, setElementInSettings }
 }
 
 export function useProvideFlightView() {
@@ -38,6 +44,6 @@ export function useProvideFlightView() {
         resolution.value = value
     }
 
-    return { setTimeRange, setVesselId, setFlightId, setLive, setResolution }
+    return { setTimeRange, setVesselId, setFlightId, setLive, setResolution, elementInSettings }
 
 }

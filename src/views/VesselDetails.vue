@@ -1,7 +1,7 @@
 <template>
-  <div v-if="!!getVessel(id)" class="">
+  <div v-if="!!vessel" class="">
     <div class="ma-2 font-weight-light text-h3">
-      {{ getVessel(id)?.name }}
+      {{ vessel.name }}
     </div>
     
     <v-divider></v-divider>
@@ -26,20 +26,22 @@
 <script setup lang="ts">
 import VesselChart from '@/components/vessel/VesselChart.vue';
 import FlightList from '@/components/flights/FlightList.vue';
-import { useVesselStore } from '@/stores/vessels';
 import { useRoute } from 'vue-router';
 import { ref } from 'vue';
+import { fetchVesselsIfNecessary, getVessel } from '@/stores/vessels';
+
+import { subscribeRealtime } from '@/stores/flight';
+import { useObservableShallow } from '@/helper/reactivity';
 
 
 
 const route = useRoute()
 const id = route.params.id as string
 
-const vesselStore = useVesselStore()
+fetchVesselsIfNecessary()
+subscribeRealtime()
 
-vesselStore.fetchVesselsIfNecessary()
-
-const getVessel = vesselStore.getVessel
+const vessel = useObservableShallow(getVessel(id))
 
 const selected = ref({})
 

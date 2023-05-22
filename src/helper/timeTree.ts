@@ -129,7 +129,7 @@ export function getChunksInRange(start: number, end: number, aggregationLevel: E
  * @param node The node in question
  * @returns 
  */
-export function getNodeTimeSpan(node: TimeTreeNode<any, any>){
+export function getNodeTimeSpan(node: TimeTreeNode<TimeTreeData, TimeTreeData>){
 
     return getChunkTimeSpan(node.start, node.aggregationLevel)
 }
@@ -164,7 +164,7 @@ export function timeSpanFullyContained(timeSpanA: TimeSpan, timeSpanB: TimeSpan)
  * @param markLoaded Wether to modify the tree and mark the returned time
  * stamps as already loaded
  */
-export function getMissingRangesRecursive(node: TimeTreeNode<any, any>, start: Date, end: Date, level: AggregationLevels | 'smallest', markLoaded: boolean): TimeSpan[] {
+export function getMissingRangesRecursive(node: TimeTreeNode<TimeTreeData, TimeTreeData>, start: Date, end: Date, level: AggregationLevels | 'smallest', markLoaded: boolean): TimeSpan[] {
 
     const aggregationLevelIndex = level != 'smallest' ? aggregationLevelReverseMap[level] : -1
     const nodeAggregationLevelIndex = aggregationLevelReverseMap[node.aggregationLevel]
@@ -217,15 +217,15 @@ export function getMissingRangesRecursive(node: TimeTreeNode<any, any>, start: D
     const chunksToConsider = getChunksInRange(min.getTime(), max.getTime(), nextAggregationLevel)
 
     // const chunksToLoad: TimeSpan[] = []
-    const nodesToCheck: TimeTreeNode<any, any>[] = []
+    const nodesToCheck: TimeTreeNode<TimeTreeData, TimeTreeData>[] = []
 
     chunksToConsider.forEach(c => {
         const asDate = new Date(c)
         // Always another node, as decisecond level is already excluded earlier
-        let member = node.members[asDate.toISOString()] as TimeTreeNode<any, any>
+        let member = node.members[asDate.toISOString()] as TimeTreeNode<TimeTreeData, TimeTreeData>
 
         if(!member)
-            member = node.members[asDate.toISOString()] = { aggregationLevel: nextAggregationLevel, start: asDate, members: {}, loadingState: 'NOT_REQUESTED', requested: {} } as TimeTreeNode<any, any>
+            member = node.members[asDate.toISOString()] = { aggregationLevel: nextAggregationLevel, start: asDate, members: {}, loadingState: 'NOT_REQUESTED', requested: {} } as TimeTreeNode<TimeTreeData, TimeTreeData>
         
         nodesToCheck.push(member)
 
@@ -278,7 +278,7 @@ function stitchRanges(timeSpans: TimeSpan[]){
  * @param loadingState The loading state to initialize the level with
  * @returns 
  */
-export function allocateTimeTreeAtLevel(node: TimeTreeNode<any, any>, start: Date, end: Date, level: AggregationLevels, loadingState: Exclude<LoadingStates, 'LOADED' | 'ERROR'>){
+export function allocateTimeTreeAtLevel(node: TimeTreeNode<TimeTreeData, TimeTreeData>, start: Date, end: Date, level: AggregationLevels, loadingState: Exclude<LoadingStates, 'LOADED' | 'ERROR'>){
 
     // Stop allocating if this is the requested or maximum level to allocate to
     if(node.aggregationLevel === level)
@@ -297,7 +297,7 @@ export function allocateTimeTreeAtLevel(node: TimeTreeNode<any, any>, start: Dat
     // Then repeat allocation on the member
     chunksToConsider.forEach(c => {
         const asDate = new Date(c)
-        let member = node.members[asDate.toISOString()] as TimeTreeNode<any, any>
+        let member = node.members[asDate.toISOString()] as TimeTreeNode<TimeTreeData, TimeTreeData>
 
         if(!member)
             member = node.members[asDate.toISOString()] = { aggregationLevel: nextAggregationLevel, start: asDate, members: {}, loadingState: loadingState, requested: {} }
@@ -306,9 +306,9 @@ export function allocateTimeTreeAtLevel(node: TimeTreeNode<any, any>, start: Dat
     })
 }
 
-export function insertValue<TLeafData extends TimeTreeData, TOwnData extends TimeTreeData | never>(node: TimeTreeNode<TLeafData, TOwnData>, value: TOwnData, aggregationLevel: Exclude<AggregationLevels, typeof ETERNITY>): void
-export function insertValue<TLeafData extends TimeTreeData, TOwnData extends TimeTreeData | never>(node: TimeTreeNode<TLeafData, TOwnData>, value: TLeafData): void
-export function insertValue<TLeafData extends TimeTreeData, TOwnData extends TimeTreeData | never>(node: TimeTreeNode<TLeafData, TOwnData>, value: TOwnData | TLeafData, maybeAggregationLevel?: Exclude<AggregationLevels, typeof ETERNITY>): void
+export function insertValue<TLeafData extends TimeTreeData, TOwnData extends TimeTreeData | never>(node: TimeTreeNode<TLeafData, TOwnData>, value: TOwnData, aggregationLevel: Exclude<AggregationLevels, typeof ETERNITY>): void;
+export function insertValue<TLeafData extends TimeTreeData, TOwnData extends TimeTreeData | never>(node: TimeTreeNode<TLeafData, TOwnData>, value: TLeafData): void;
+export function insertValue<TLeafData extends TimeTreeData, TOwnData extends TimeTreeData | never>(node: TimeTreeNode<TLeafData, TOwnData>, value: TOwnData | TLeafData, maybeAggregationLevel?: Exclude<AggregationLevels, typeof ETERNITY>): void;
 
 export function insertValue<TLeafData extends TimeTreeData, TOwnData extends TimeTreeData | never>(node: TimeTreeNode<TLeafData, TOwnData>, value: TOwnData | TLeafData, maybeAggregationLevel?: Exclude<AggregationLevels, typeof ETERNITY>){
 
@@ -396,8 +396,10 @@ export function getValues<TLeafData extends TimeTreeData, TOwnData extends TimeT
 
 export function getClosest<TLeafData extends TimeTreeData, TOwnData extends TimeTreeData | never>(node: TimeTreeNode<TLeafData, TOwnData>, date: Date, aggregationLevel?: AggregationLevels): (TLeafData | TOwnData | undefined){
      
-    
-    if(!aggregationLevel && node.aggregationLevel === DECISECOND){
+    const nodeAggregationLevelIndex = aggregationLevelReverseMap[node.aggregationLevel]
+    const aggregationLevelIndex = aggregationLevel ? aggregationLevelReverseMap[aggregationLevel] : undefined
+
+    if((!aggregationLevel || nodeAggregationLevelIndex < aggregationLevelIndex! ) && node.aggregationLevel === DECISECOND){
 
         const sortedMembers = Object.keys(node.members)
             .sort()
@@ -408,12 +410,11 @@ export function getClosest<TLeafData extends TimeTreeData, TOwnData extends Time
         return sortedMembers.length > 0 ? sortedMembers[0] : undefined
     }
     
-    const nodeAggregationLevelIndex = aggregationLevelReverseMap[node.aggregationLevel]
 
-    if(node.aggregationLevel === aggregationLevel)
-        return node.ownMeasurementValue ? node.ownMeasurementValue : undefined
+    if(aggregationLevelIndex && nodeAggregationLevelIndex <= aggregationLevelIndex && node.ownMeasurementValue)
+        return node.ownMeasurementValue
 
-    const memberKeys = Object.keys(node.members).sort().reverse()
+    const memberKeys = Object.keys(node.members).sort()
     
 
     const result: (TLeafData | TOwnData | undefined) = undefined
@@ -425,6 +426,9 @@ export function getClosest<TLeafData extends TimeTreeData, TOwnData extends Time
         i--
 
         if(!member)
+            continue
+
+        if(member.start.getTime() > date.getTime())
             continue
 
         const potentialResult = getClosest(member, date, aggregationLevel)

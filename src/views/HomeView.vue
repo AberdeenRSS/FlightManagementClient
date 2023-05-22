@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import AdvancedDatetimeSelector from '@/components/misc/advanced-datetime-selector/AdvancedDatetimeSelector.vue';
 import VesselOverview from '@/components/vessel/VesselOverview.vue'
 
 </script>

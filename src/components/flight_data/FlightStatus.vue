@@ -2,7 +2,7 @@
 
 <div class="status-box" :style="`background-color: ${color};`">
     <div class="status-text">{{ text }}</div>
-    <div class="series-name">{{ series?.seriesName ?? '' }}</div>
+    <div class="series-name">{{ series ?? '' }}</div>
 </div>
 
 </template>
@@ -28,23 +28,24 @@
 
 <script lang="ts" setup>
 
-import { useComponentConfiguration, type FlightDataConfig } from '@/composables/componentsConfiguration/componentConfiguration';
-import { computed, defineProps, inject, ref, toRef, toRefs, watch } from 'vue'
-import { DASHBOARD_WIDGET_ID, useDashboardWidgetStore } from '../misc/dashboard/DashboardComposable';
-import { useWidgetData, useSelectedPart } from './flightDashboardElemStoreTypes';
-import { getVesselHistoric, useVesselStore, type Vessel } from '@/stores/vessels'
 import { useFlightViewState, type TimeRange } from '@/composables/useFlightView';
+import { unwrapShallowRef } from '@/helper/reactivity';
+import { getClosest } from '@/helper/timeTree';
 import { useFlightDataStore, type MeasurementTypes } from '@/stores/flight_data';
-import { getClosest, type TimeTreeData } from '@/helper/timeTree'
-import { watchDebounced, watchThrottled } from '@vueuse/shared';
-import { useFlightStore } from '@/stores/flight';
+import { watchDebounced } from '@vueuse/shared';
+import { computed, inject, ref, shallowRef, triggerRef } from 'vue';
+import { DASHBOARD_WIDGET_ID } from '../misc/dashboard/DashboardComposable';
+import { useSelectedPart, useWidgetData } from './flightDashboardElemStoreTypes';
+
 
 const dashboardWidgetId = inject(DASHBOARD_WIDGET_ID)
 
-const { vesselId, flightId,  timeRange } = useFlightViewState()
+const { flightId,  timeRange, resolution } = useFlightViewState()
 
-const throttledTimeRange = ref<TimeRange>(timeRange.value)
-watchDebounced(timeRange, v => throttledTimeRange.value = v, {immediate: true, deep: true, debounce: 200, maxWait: 500})
+
+const timeRangeDebounced = shallowRef<TimeRange | undefined>(undefined)
+
+watchDebounced(timeRange, r => {timeRangeDebounced.value = r ? {...r} : undefined; triggerRef(timeRangeDebounced)}, {immediate: true, deep: true, debounce: 100, maxWait: 150 })
 
 const partId = useSelectedPart(dashboardWidgetId!)
 
@@ -53,82 +54,47 @@ const widgetData = useWidgetData(dashboardWidgetId!)
 if (!dashboardWidgetId)
     throw new Error('Flight Status not used in within a dashboard')
 
-const vesselStore = useVesselStore()
+// const { vessel$, flight$ } = getFlightAndHistoricVessel(vesselId, flightId)
 
-const flightStore = useFlightStore()
+// const selectedPartId = useSelectedPart(dashboardWidgetId)
+// const selectedPart$ = getPart(vessel$, selectedPartId)
 
-const flight = computed(() => vesselId && flightId ? flightStore.vesselFlights[vesselId.value]?.flights[flightId.value]?.flight : undefined)
+// const { configurations } = useComponentConfiguration()
 
-const vessel = ref<Vessel | undefined>(undefined)
+// const relevantConfiguration = computed(() => selectedPartId.value && selectedPart.value ? configurations[selectedPart.value?.part_type] : undefined)
 
-watch(flight, f => {
-    if(!f)
-        return
-    vesselStore.fetchHistoricVessel(f._vessel_id, f._vessel_version)
-    watch(getVesselHistoric(vesselStore, f._vessel_id, f._vessel_version), v =>{ 
-        if(v?.entity)
-            vessel.value = v.entity
-    }, {immediate: true, deep: true} )
-}, {immediate: true, deep: true})
+// const dataConfig = relevantConfiguration.value?.flightDataConfig
 
-const selectedPartId = useSelectedPart(dashboardWidgetId)
-const selectedPart = computed(() => vessel.value?.parts.find(p => p._id === selectedPartId.value))
+const series = computed(() => widgetData.value.selectedSeries)
 
-const { configurations } = useComponentConfiguration()
-const relevantConfiguration = computed(() => selectedPartId.value && selectedPart.value ? configurations[selectedPart.value?.part_type] : undefined)
+const { getOrInitStore } = useFlightDataStore()
 
-const dataConfig = relevantConfiguration.value?.flightDataConfig
-
-const series = computed(() => dataConfig ? Object.keys(dataConfig).map(k => ({key: k, ...dataConfig[k]})).find(c => c.seriesName === widgetData.value.selectedSeries) : undefined)
-
-const { store: store$ } = useFlightDataStore()
-
-// const flightData = computed(() => store$.value.flight_data[flightId.value])
-
-const flightData = toRef(store$.value.flight_data, flightId.value)
-
-const measurement = ref<(FlightDataChunk & TimeTreeData) | (FlightDataChunkAggregated & TimeTreeData) | undefined>(undefined)
-
-watchDebounced([store$, flightId, partId, throttledTimeRange], ([store, flight, part, range]) => {
-
-    const id = `${flight}*${part}`
-
-    const flightData = store.flight_data[id]?.measurements
-
-    if(!flightData)
-        return
-
-    measurement.value =  getClosest(flightData, range.cur, 'decisecond')
-
-}, { immediate: true, deep: true, debounce: 200, maxWait: 500 })
+const flightData = unwrapShallowRef(computed(() => partId.value && flightId.value ? getOrInitStore(flightId.value, partId.value): undefined))
 
 const value = ref<MeasurementTypes | undefined>()
 
-watch([measurement, series], ([m, s]) => {
+watchDebounced([flightData, timeRangeDebounced, series, resolution], ([store, range, s, r]) => {
 
-    if(!m || !s){
+    if(!store || !range || !s){
         value.value = undefined
         return
     }
 
-    const seriesMeasurement = m.measured_values[s.key]
+    const v = getClosest(store.measurements, range.cur, r === 'smallest' ? undefined : r)
 
-    if(!seriesMeasurement){
+    if(!v){
         value.value = undefined
         return
     }
 
-    const v = isAggregatedMeasurement(seriesMeasurement) ? 
-        seriesMeasurement.avg ?? seriesMeasurement.min ?? seriesMeasurement.max
-        : seriesMeasurement
+    value.value = v.measurements_aggregated[s]?.[0]
+    
+}, { immediate: true, deep: false })
 
-    value.value = v
-        
 
-}, {immediate: true, deep: true})
+const color = computed(() =>/* series.value?.statusColor && value.value ? series.value.statusColor(value.value) :*/ '#ffffff')
 
-const color = computed(() => series.value?.statusColor && value.value ? series.value.statusColor(value.value) : '#ffffff')
+const text = computed(() => /* series.value?.statusText && value.value ? series.value.statusText(value.value) : ''*/ value.value)
 
-const text = computed(() => series.value?.statusText && value.value ? series.value.statusText(value.value) : '')
 
 </script>

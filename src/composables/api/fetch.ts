@@ -1,6 +1,6 @@
 // fetch.js
 import { ref } from 'vue'
-import { defaultScopes, useAuthFlow, useMsal, useUserData } from '../msal/useMsal'
+import { useMsal, useUserData } from '../msal/useMsal'
 
 export function useFetch(url: string) {
   const data = ref(null)

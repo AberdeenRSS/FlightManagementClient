@@ -61,7 +61,7 @@
 <script lang="ts" setup>
 
 import { v4 } from 'uuid';
-import { defineEmits, onMounted, ref, toRefs, watch, computed, type Ref, type WatchStopHandle } from 'vue'
+import { ref, toRefs, watch, computed, type Ref, type WatchStopHandle } from 'vue'
 import { useDashboardPersistStore, useDashboardStore, type StoreObject } from './DashboardComposable';
 
 const dropdownOpen = ref(false)
@@ -79,13 +79,13 @@ const props = defineProps({
 
 const { modelValue } = toRefs(props)
 
-const { availableDashboards, loadDashboardIndicesFromStorage, saveDashboardIndicesToStorage, saveDashboardToStorage, tryLoadDashboardFromStorage, createNew, makeDefault, deleteDashboard } = useDashboardPersistStore()
+const { availableDashboards, loadDashboardIndicesFromStorage, saveDashboardIndicesToStorage, saveDashboardToStorage, createNew, makeDefault, deleteDashboard } = useDashboardPersistStore()
 
 loadDashboardIndicesFromStorage()
 
 const currentDashboardId = ref<string | undefined>()
 
-if (modelValue) {
+if (modelValue?.value) {
     watch(modelValue, v => {
         currentDashboardId.value = v
     }, { immediate: true })

@@ -1,5 +1,5 @@
 <template>
-    <div style="width: 100%;">
+    <div style="width: 100%; overflow-y: scroll;">
         <v-table>
             <thead>
                 <tr>
@@ -15,11 +15,11 @@
                 </tr>
             </thead>
             <tbody>
-                <tr v-for="item in flightsSorted" :key="item.flight._id">
-                    <td>{{ item.flight!.name }}</td>
-                    <td>{{new Date(Date.parse(item.flight!.start)).toLocaleDateString()}} {{  new Date(Date.parse(item.flight!.start)).toLocaleTimeString() }}</td>
+                <tr v-for="item in flightsSorted" :key="item._id">
+                    <td>{{ item!.name }}</td>
+                    <td>{{new Date(Date.parse(item!.start)).toLocaleDateString()}} {{  new Date(Date.parse(item!.start)).toLocaleTimeString() }}</td>
 
-                    <td><v-btn @click="router.push(`/flight/${item.flight._vessel_id}/${item.flight!._id}`)">Details</v-btn></td>
+                    <td><v-btn @click="router.push(`/flight/${item._vessel_id}/${item!._id}`)">Details</v-btn></td>
                 </tr>
             </tbody>
         </v-table>
@@ -28,8 +28,11 @@
 </template>
 
 <script setup lang="ts">
-import { useFlightStore } from '@/stores/flight';
-import { computed, reactive, toRefs } from 'vue';
+import { fromImmediate, useObservableShallow } from '@/helper/reactivity';
+import { fetchFlightsForVesselIfNecessary, getFlights } from '@/stores/flight';
+
+import { combineLatest, map, switchMap } from 'rxjs';
+import { reactive, toRefs, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 const props = defineProps({
@@ -42,14 +45,16 @@ const props = defineProps({
 const { vesselId } = toRefs(props)
 const { $vesselId } = reactive({$vesselId: vesselId})
 
-const flightStore = useFlightStore()
 const router = useRouter()
 
-flightStore.fetchFlightsForVesselIfNecessary($vesselId)
+const flightsSorted$ = getFlights($vesselId).pipe(
+    map(flights => Object.keys(flights.flights).map(k => flights.flights[k])),
+    switchMap(flights => combineLatest(flights.map(f => fromImmediate(f.flight)))),
+    map(flights => flights.sort((a, b) => Date.parse(b.start) - Date.parse(a.start) ) )
+)
 
-const flights = computed(() => flightStore.vesselFlights[$vesselId].flights)
+const flightsSorted = useObservableShallow(flightsSorted$)
 
-const flightsSorted = computed(() => Object.keys(flights.value).map(k => flights.value[k]).sort((a, b) => Date.parse(b.flight.start) - Date.parse(a.flight.start) ))
-
+watch(vesselId, v => fetchFlightsForVesselIfNecessary(v), {immediate: true})
 
 </script>

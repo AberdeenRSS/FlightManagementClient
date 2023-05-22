@@ -1,53 +1,15 @@
 <template>
-    <v-card style="height: 100%; width: 100%;" :widgetSize="size">
+    <v-card style="height: 100%; width: 100%;" :widgetSize="size" >
         <div class="card-content">
 
             <div style="height: 100%;" class="card-body">
 
-                <div v-if="widgetData.inSettings" style="height: 100%; width: 100%;">
 
-                    <div class="d-flex flex-column" style="height: 100%;">
+                <div  class="d-flex flex-column" style="height: 100%;">
 
-                        <span class="tabs">
-
-                            <v-tabs density="compact" align-tabs="start" v-model="selectedTab">
-                                <v-tab v-for="item in tabs" :key="item" :value="item">
-                                    {{ item }}
-                                </v-tab>
-                            </v-tabs>
-                        </span>
-
-                        <div v-if="selectedTab === 'Select View'" class="settings-item">
-                            <v-select density="compact" label="View" v-model="widgetData.selectedView" :items="views"></v-select>
-                        </div>
-
-                        <div v-if="selectedTab === 'Select Part'" class="settings-item">
-                            <VesselChart :vessel-id="vesselId" :version="flight?._vessel_version" v-model="widgetData.selectedParts"></VesselChart>
-                        </div>
-
-                        <div v-if="selectedTab === 'Status'" class="settings-item">
-                            <FlightStatusSettings></FlightStatusSettings>
-                        </div>
-
-                        <div v-if="selectedTab === 'Select Command'" class="settings-item">
-                            <CommandDispatchBar v-model:command-type="widgetData.commandDispatchSelectedCommandType" v-model:part-id="commandSelectedPart"></CommandDispatchBar>
-                        </div>
-
-                        <div v-if="selectedTab === 'General'" class="settings-item">
-                            <DashboardResizer></DashboardResizer>
-                        </div>
-                        <v-btn v-if="selectedTab === 'General'" color="error" @click="deleteWidget()">Delete</v-btn>
-
-                        <v-btn variant="outlined" @click="widgetData.inSettings = false">Done</v-btn>
-
-                    </div>
-
-                </div>
-
-                <div v-if="!widgetData.inSettings" class="d-flex flex-column" style="height: 100%;">
-
-                    <div v-if="!widgetData.inSettings" class="d-flex justify-space-between align-center">
-                        <v-btn v-if="!widgetData.inSettings" icon="mdi-cog-outline" variant="plain" @click="widgetData.inSettings = true"></v-btn>
+                    <div  class="d-flex justify-space-between align-center">
+                        <v-btn  icon="mdi-cog-outline" variant="plain"
+                            @click="onSettings"></v-btn>
                         <div>{{ title }}</div>
                         <div><v-icon :icon="relevantConfiguration?.iconId ?? 'mdi-checkbox-blank'"></v-icon></div>
                     </div>
@@ -61,7 +23,11 @@
                     </div>
 
                     <div class="flex-grow-1" v-if="widgetData.selectedView === 'Command'">
-                        <CommandDispatchButton :part="selectedPart?._id" :command-type="widgetData.commandDispatchSelectedCommandType"></CommandDispatchButton>
+                        <CommandWidget></CommandWidget>
+                    </div>
+
+                    <div class="flex-grow-1" v-if="widgetData.selectedView === '3D Model'">
+                        <FlightStatus3D></FlightStatus3D>
                     </div>
 
                 </div>
@@ -72,6 +38,9 @@
 </template>
 
 <style lang="scss">
+
+
+
 .card-content {
 
     width: 100%;
@@ -110,124 +79,77 @@
 
 <script setup lang="ts">
 
-import VesselChart from '@/components/vessel/VesselChart.vue';
-import DashboardResizer from '@/components/misc/dashboard/DashboardResizer.vue'
 
-import { computed, inject, ref, watch, type Ref } from 'vue';
-import { toRefs, toRef } from 'vue';
-import { DASHBOARD_WIDGET_ID, useDashboardWidgetStore } from '../misc/dashboard/DashboardComposable';
-import SimpleFlightDataChart from '../flight_data/SimpleFlightDataChart.vue'
-import FlightStatusSettings from '../flight_data/FlightStatusSettings.vue';
-import FlightStatus from '../flight_data/FlightStatus.vue'
-import CommandDispatchBar from '../command/CommandDispatchBar.vue';
-import CommandDispatchButton from '../command/CommandDispatchButton.vue';
-import { useFlightDataStore } from '@/stores/flight_data'
-import { throttledWatch, watchDebounced, watchThrottled } from '@vueuse/shared';
-import { getVesselHistoric, useVesselStore, type Vessel } from '@/stores/vessels';
-import { useSelectedPart, useWidgetData, type FlightDashboardWidgetData } from '../flight_data/flightDashboardElemStoreTypes';
+import FlightStatus3D from '../flight_data/3dFlightStatus/3dFlightStatus.vue';
+import FlightStatus from '../flight_data/FlightStatus.vue';
+import SimpleFlightDataChart from '../flight_data/SimpleFlightDataChart.vue';
+
 import { useComponentConfiguration } from '@/composables/componentsConfiguration/componentConfiguration';
 import { useFlightViewState } from '@/composables/useFlightView';
-import { useFlightStore } from '@/stores/flight';
-
+import { useObservableShallow } from '@/helper/reactivity';
+import { getFlightAndHistoricVessel } from '@/stores/combinedMethods';
+import { useFlightDataStore } from '@/stores/flight_data';
+import { getPart } from '@/stores/vessels';
+import { watchDebounced } from '@vueuse/shared';
+import { map, shareReplay } from 'rxjs';
+import { computed, inject, ref, watch } from 'vue';
+import { useSelectedPart, useWidgetData } from '../flight_data/flightDashboardElemStoreTypes';
+import { DASHBOARD_WIDGET_ID } from '../misc/dashboard/DashboardComposable';
+import CommandWidget from '../command/CommandWidget.vue';
 
 const dashboardWidgetId = inject(DASHBOARD_WIDGET_ID)
 
 if (!dashboardWidgetId)
     throw new Error('Resizer not used in within a dashboard')
 
-const { deleteWidget } = useDashboardWidgetStore(dashboardWidgetId)
-
+const { vesselId, flightId, timeRange, resolution, live, setElementInSettings } = useFlightViewState()
+const { fetchFlightDataInTimeFrame } = useFlightDataStore()
 const widgetData = useWidgetData(dashboardWidgetId)
+
+if (!('inSettings' in widgetData.value) && dashboardWidgetId)
+    setElementInSettings(dashboardWidgetId)
+
 widgetData.value.selectedParts = widgetData.value.selectedParts ?? {}
 widgetData.value.selectedView = widgetData.value.selectedView ?? 'Graph'
 widgetData.value.inSettings = 'inSettings' in widgetData.value ? widgetData.value.inSettings : true
 
-const views = ['Graph', 'Status', 'Command']
+const selectedPartId = useSelectedPart(dashboardWidgetId)
 
-const baseTabs = ['Select View', 'Select Part', 'General']
-const tabs = ref<string[]>(baseTabs)
-const selectedTab = ref<string>('Select View')
-
-watch([widgetData], ([wd]) => {
-
-    const view = wd.selectedView
-
-    if(view === 'Status') 
-       tabs.value = [...baseTabs, 'Status']
-    else if(view === 'Command')
-        tabs.value = ['Select View', 'General', 'Select Command']
-    else
-        tabs.value = baseTabs
-
-    // Reset tab if it is no longer available
-    if (!tabs.value.some(t => t === selectedTab.value))
-        selectedTab.value = tabs.value[0]
-
-}, {immediate: true, deep: true})
-
+const { vessel$ } = getFlightAndHistoricVessel(vesselId, flightId)
+const selectedPart$ = getPart(vessel$, selectedPartId).pipe(shareReplay())
+// const selectedPart = useObservableShallow(selectedPart$)
 
 const size = ref({ x: 2, y: 2 })
 
-
-
-const { vesselId, flightId, timeRange, resolution, live } = useFlightViewState()
-const { fetchFlightDataInTimeFrame, subscribeRealtime } = useFlightDataStore()
-const selectedPartId = useSelectedPart(dashboardWidgetId)
-
-const vesselStore = useVesselStore()
-
-const flightStore = useFlightStore()
-
-const flight = computed(() => vesselId && flightId ? flightStore.vesselFlights[vesselId.value]?.flights[flightId.value]?.flight : undefined)
-
-const vessel = ref<Vessel | undefined>(undefined)
-
-watch(flight, f => {
-    if(!f)
-        return
-    vesselStore.fetchHistoricVessel(f._vessel_id, f._vessel_version)
-    watch(getVesselHistoric(vesselStore, f._vessel_id, f._vessel_version), v =>{ 
-        if(v?.entity)
-            vessel.value = v.entity
-    }, {immediate: true, deep: true} )
-}, {immediate: true, deep: true})
-
-const title = computed(() => selectedPartId.value ? vessel.value?.parts.find(p => p._id === selectedPartId.value)?.name : 'No Part Selected')
-const selectedPart = computed(() => vessel.value?.parts.find(p => p._id === selectedPartId.value))
-
-const commandSelectedPart = computed({
-    get(){
-        return selectedPart.value?._id
-    },
-    set(value: string | undefined){
-        widgetData.value.selectedParts = value? {[value]: true} : {}
-    }
-})
+const title = useObservableShallow(selectedPart$.pipe(map(p => p?.name ?? 'No part selected')))
 
 const { configurations } = useComponentConfiguration()
-const relevantConfiguration = computed(() => selectedPartId.value && selectedPart.value ? configurations[selectedPart.value?.part_type] : undefined)
-
-subscribeRealtime(flightId.value)
+const relevantConfiguration$ = selectedPart$.pipe(map(part => part ? configurations[part.part_type] : undefined))
+const relevantConfiguration = useObservableShallow(relevantConfiguration$)
 
 const debouncedRange = ref(timeRange.value)
 
 const debounceTime = computed(() => live.value ? 4000 : 300)
 
-watchDebounced(timeRange, r => debouncedRange.value = r, {immediate: true, deep: true, debounce: debounceTime, maxWait: 5000})
+watchDebounced(timeRange, r => debouncedRange.value = r, { immediate: true, deep: true, debounce: debounceTime, maxWait: 5000 })
 
 watch([flightId, selectedPartId, debouncedRange, resolution, live], ([v, id, r, res, l]) => {
 
     if (!id)
         return
 
-    if(!r)
+    if (!r)
         return
 
-    if(!l)
+    if (!l)
 
-    if(res != 'eternity')
-        fetchFlightDataInTimeFrame(v, id, r.start, r.end, res)
+        if (res != 'eternity')
+            fetchFlightDataInTimeFrame(v, id, r.start, r.end, res)
 }, { immediate: true, deep: true })
+
+function onSettings(){
+    setElementInSettings(dashboardWidgetId)
+}
 
 </script>
 

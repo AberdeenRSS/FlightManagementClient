@@ -4,6 +4,7 @@ import { useDashboardWidgetStore } from "../misc/dashboard/DashboardComposable"
 export type FlightDashboardWidgetData = {
     selectedParts: {[id: string]: boolean},
     selectedSeries: string,
+    selectedSeriesMulti: {[index: string]: string}
     selectedView: string,
     inSettings: boolean,
     commandDispatchSelectedCommandType: string | undefined,

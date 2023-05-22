@@ -1,97 +1,131 @@
 import { fetchRssApi } from '@/composables/api/rssFlightServerApi';
-import { defineStore } from 'pinia'
-import { computed, reactive, ref, type Ref } from 'vue';
-import { waitUntil } from '@/helper/reactivity'
+import { asObservable, fromImmediate, type MaybeReactive } from '@/helper/reactivity';
 import { until } from '@vueuse/core';
+import { from } from '@vueuse/rxjs';
+import { combineLatest, map, shareReplay, switchMap, type Observable } from 'rxjs';
+import { shallowRef, triggerRef } from 'vue';
 
-export const useVesselStore = defineStore({
-    id: 'vessels',
-    
-    state: () => ({
-        vessels: {} as { [index: string]: StoreObject },
-        vesselsHistoric: {} as { [index: string]: StoreObject },
-        loadingStates: 'NOT_REQUESTED' as LoadingStates
-    }),
-    getters: {
-        getVessels: (state) => state.vessels,
-        getVessel: (state) => (id: string) => state.vessels[id]?.entity,
-        getVesselState: (state) => (id: string) => state.vessels[id],
-        getLoadingState: (state) => state.loadingStates
-    },
-    actions: {
-        async fetchVesselsIfNecessary() {
-
-            // Return if the data was already successfully requested
-            if (this.loadingStates !== 'NOT_REQUESTED' && this.loadingStates !== 'ERROR')
-                return;
-
-            this.loadingStates = 'REQUESTED'
-
-            const { data, error, isFinished } = await fetchRssApi('/vessel/get_all')
-
-            await until(isFinished).toBe(true)
-
-            if (error.value) {
-                this.loadingStates = 'ERROR'
-                console.log(error)
-                return
-            }
-
-            JSON.parse(data.value as string).forEach((v: Vessel) => {
-
-                // Don't overwrite vessels already loaded
-                if (this.vessels[v._id])
-                    return
-
-                this.vessels[v._id] = {
-                    entity: v,
-                    loadingDetails: 'LOADED'
-                }
-            });
-
-            this.loadingStates = 'LOADED'
-
-        },
-        async fetchHistoricVessel(id: string, version: number) {
-
-            const key = `${id}*${version}`
-            let storeObject = this.vesselsHistoric[key]
-
-            if(!storeObject)
-                storeObject = this.vesselsHistoric[key] = {loadingDetails: 'NOT_REQUESTED', entity: null}
-
-            // Return if the data was already successfully requested
-            if (storeObject.loadingDetails !== 'NOT_REQUESTED' && storeObject.loadingDetails !== 'ERROR')
-                return;
-
-            storeObject.loadingDetails = 'REQUESTED'
-
-            const { data, error, isFinished } = await fetchRssApi(`/vessel/get/${id}/${version}`)
-
-            await until(isFinished).toBe(true)
-
-            if (error.value) {
-                storeObject.loadingDetails = 'ERROR'
-                console.log(error)
-                return
-            }
-
-            const vessel = JSON.parse(data.value as string) as Vessel
-
-            storeObject.entity = vessel
-            storeObject.loadingDetails = 'LOADED'
-
-        }
-    }
+export const state = shallowRef({
+    vessels: {} as { [index: string]: StoreObject },
+    vesselsHistoric: {} as { [index: string]: StoreObject },
+    loadingStates: 'NOT_REQUESTED' as LoadingStates
 })
 
-export function getVesselHistoric(store: ReturnType<typeof useVesselStore>, id: string, version: number){
+export function getVessels() {
+    return from(state, { immediate: true }).pipe(map(s => s.vessels))
+}
 
-    const historic = ref<StoreObject | null>(store.$state.vesselsHistoric[`${id}*${version}`])
+export function getVessel(id$: MaybeReactive<string>) {
 
-    store.$subscribe(s => historic.value = store.$state.vesselsHistoric[`${id}*${version}`])
+    return combineLatest([from(state, { immediate: true }), asObservable(id$)]).pipe(
+        map(([s, id]) => s.vessels[id]?.entity),
+        shareReplay()
+    )
+}
 
-    return historic
+export function getPart(vessel$: Observable<Vessel | null>, partId$: MaybeReactive<string | undefined>){
+    return combineLatest([vessel$, asObservable(partId$)]).pipe(
+        map(([vessel, partId]) => vessel?.parts.find(p => p._id === partId))
+    )
+}
+
+export function getVesselState(id$: MaybeReactive<string>) {
+
+    return combineLatest([from(state, { immediate: true }), asObservable(id$)]).pipe(
+        map(([s, id]) => s.vessels[id]))
+}
+
+export function getVesselMaybeHistoric(id$: MaybeReactive<string>, version$?: MaybeReactive<number | undefined>){
+    if(version$)
+        return asObservable(version$).pipe(
+            switchMap(v => v ? getVesselHistoric(id$, v) : getVessel(id$)),
+            shareReplay()
+        )
+    
+    return getVessel(id$)
+}
+
+export function getVesselHistoric(id$: MaybeReactive<string>, version$: MaybeReactive<number>) {
+
+    return combineLatest([fromImmediate(state), asObservable(id$), asObservable(version$)]).pipe(
+        map(([s, id, version]) => s.vesselsHistoric[`${id}*${version}`]?.entity),
+        shareReplay()
+    )
+}
+
+export function getLoadingState() {
+
+    return from(state, { immediate: true }).pipe(map(s => s.loadingStates))
+}
+
+export async function fetchVesselsIfNecessary() {
+
+    // Return if the data was already successfully requested
+    if (state.value.loadingStates !== 'NOT_REQUESTED' && state.value.loadingStates !== 'ERROR')
+        return;
+
+    state.value.loadingStates = 'REQUESTED'
+
+    const { data, error, isFinished } = await fetchRssApi('/vessel/get_all')
+
+    await until(isFinished).toBe(true)
+
+    if (error.value) {
+        state.value.loadingStates = 'ERROR'
+        console.log(error)
+        return
+    }
+
+    JSON.parse(data.value as string).forEach((v: Vessel) => {
+
+        // Don't overwrite vessels already loaded
+        if (state.value.vessels[v._id])
+            return
+
+        state.value.vessels[v._id] = {
+            entity: v,
+            loadingDetails: 'LOADED'
+        }
+    });
+
+    state.value.loadingStates = 'LOADED'
+
+    triggerRef(state)
+
+}
+
+export async function fetchHistoricVessel(id: string, version: number) {
+
+    const key = `${id}*${version}`
+    let storeObject = state.value.vesselsHistoric[key]
+
+    if (!storeObject)
+        storeObject = state.value.vesselsHistoric[key] = { loadingDetails: 'NOT_REQUESTED', entity: null }
+
+    // Return if the data was already successfully requested
+    if (storeObject.loadingDetails !== 'NOT_REQUESTED' && storeObject.loadingDetails !== 'ERROR')
+        return;
+
+    storeObject.loadingDetails = 'REQUESTED'
+
+    const { data, error, isFinished } = await fetchRssApi(`/vessel/get/${id}/${version}`)
+
+    await until(isFinished).toBe(true)
+
+    if (error.value) {
+        storeObject.loadingDetails = 'ERROR'
+        console.log(error)
+        triggerRef(state)
+        return
+    }
+
+    const vessel = JSON.parse(data.value as string) as Vessel
+
+    storeObject.entity = vessel
+    storeObject.loadingDetails = 'LOADED'
+    
+    triggerRef(state)
+
 }
 
 export type LoadingStates =
@@ -99,10 +133,6 @@ export type LoadingStates =
     | 'REQUESTED'
     | 'LOADED'
     | 'ERROR'
-
-function shouldRequest(l: LoadingStates) {
-    return l === 'NOT_REQUESTED' || l === 'ERROR'
-}
 
 export type Vessel = {
     _id: string;

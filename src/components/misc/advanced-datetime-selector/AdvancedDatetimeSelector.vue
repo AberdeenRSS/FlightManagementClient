@@ -107,7 +107,6 @@ $playbar-color: lightgray;
         justify-content: start;
     }
 
-    .nav-elem {}
 
     .time {
         flex-shrink: 0;
@@ -261,8 +260,8 @@ $playbar-color: lightgray;
 </style>
 
 <script lang="ts" setup>
-import { debouncedWatch, formatDate, hasOwn, timestamp, toRefs } from '@vueuse/core';
-import { computed, ref, watch, type VNodeRef, onUnmounted } from 'vue';
+import { formatDate, toRefs } from '@vueuse/core';
+import { computed, onUnmounted, ref, watch, type VNodeRef } from 'vue';
 
 type TouchOrMouseEvent = TouchEvent | MouseEvent;
 
@@ -377,7 +376,7 @@ function setTimeOffset() {
 
 setTimeOffset()
 
-function play(_: any) {
+function play(_: unknown) {
 
     advanceTime()
 
@@ -502,7 +501,7 @@ function onLive() {
 
     setTimeOffset()
 }
-function onDragMinStart($event: TouchOrMouseEvent) {
+function onDragMinStart(_$event: TouchOrMouseEvent) {
 
 
     displayMinPreview.value++
@@ -520,7 +519,7 @@ function onDragMinEnd($event: TouchOrMouseEvent) {
     draggingRangeMin.value = false
     dragMin($event)
 }
-function onDragMaxStart($event: TouchOrMouseEvent) {
+function onDragMaxStart(_$event: TouchOrMouseEvent) {
     displayMaxPreview.value++
     draggingRangeMax.value = true
 }
@@ -537,7 +536,7 @@ function onDragMaxEnd($event: TouchOrMouseEvent) {
     dragMax($event)
 }
 
-function onDragCurStart($event: TouchOrMouseEvent) {
+function onDragCurStart(_$event: TouchOrMouseEvent) {
     displayCurrentPreview.value++
     draggingCurrent.value = true
 }

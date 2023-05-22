@@ -1,10 +1,8 @@
 import { fetchRssApi, useRssWebSocket } from '@/composables/api/rssFlightServerApi';
-import { defineStore } from 'pinia'
-import { computed, reactive, ref, shallowRef, triggerRef, watch, type Ref, type ShallowRef } from 'vue';
-import { waitUntil } from '@/helper/reactivity'
-import { until, type UseFetchReturn } from '@vueuse/core';
 import type { LoadingStates } from '@/helper/loadingStates';
-import { allocateTimeTreeAtLevel, DECISECOND, ETERNITY, getMissingRangesRecursive, insertValue, type AggregationLevels, type TimeTreeData, type TimeTreeNode } from '@/helper/timeTree';
+import { ETERNITY, getMissingRangesRecursive, insertValue, type AggregationLevels, type TimeTreeData, type TimeTreeNode } from '@/helper/timeTree';
+import { until } from '@vueuse/core';
+import { ref, shallowRef, triggerRef, watch, type ShallowRef } from 'vue';
 
 function getMeasurementRequestUrl(flightId: string, vesselPart: string, start: Date, end: Date, resolution: Exclude<AggregationLevels | 'smallest', 'eternity'>) {
     if (resolution == 'smallest')
@@ -12,8 +10,6 @@ function getMeasurementRequestUrl(flightId: string, vesselPart: string, start: D
     else
         return `/flight_data/get_aggregated_range/${flightId}/${vesselPart}/${resolution}/${start.toISOString()}/${end.toISOString()}`
 }
-
-const MinRealtimePeriod = 2000
 
 const store = {
     flight_data: {} as { [index: string]: ShallowRef<FlightDataState> },
@@ -56,12 +52,12 @@ async function fetchFlightDataInTimeFrame(flightId: string, vesselPart: string, 
     // wait for all of the request to be completed
     await Promise.all(requests.map(r => until(r.isFinished).toBe(true)))
 
-    const errored = requests.filter((r, i) => r.error.value)
+    const errored = requests.filter((r) => r.error.value)
 
-    errored.forEach(e => {
-        console.error(`Failed flight data request failed with code ${e.statusCode} and message ${e.error}`)
+    errored.forEach(e => console.error(`Failed flight data request failed with code ${e.statusCode} and message ${e.error}`))
+
+    if(errored.length > 0)
         return
-    })
 
     const newData: Measurements[] = requests.map(r => (JSON.parse(r.data.value as string) as Measurements[])).flat()
 

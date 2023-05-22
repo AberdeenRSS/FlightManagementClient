@@ -1,10 +1,10 @@
 import type { MaybeRef } from "@vueuse/core";
-import { computed, ref, shallowRef, toRef, watch, type InjectionKey, type Ref } from "vue";
+import { computed, ref, watch, type InjectionKey, type Ref } from "vue";
 
 export const DASHBOARD_ID: InjectionKey<string> = Symbol()
 export const DASHBOARD_WIDGET_ID: InjectionKey<[string, string]> = Symbol()
 
-export type Widget = { sizeX: number; sizeY: number; id: string, data: { [key: string]: any } }
+export type Widget = { sizeX: number; sizeY: number; id: string, data: Record<string, unknown> }
 export type WidgetSlot = { element: Widget | null; blocked: string | undefined, hoverCount: number; y: number; x: number }
 export type WidgetRow = WidgetSlot[]
 export type WidgetMatrix = WidgetRow[]
@@ -12,6 +12,13 @@ export type WidgetMatrix = WidgetRow[]
 export type StoreObject = { name: string, saved: boolean, isDefault: boolean, matrix: WidgetMatrix, widgets: Widget[], canDrop: boolean, rows: number, cols: number }
 
 export type ResizeDirections = 'shrinkHorizontal' | 'enlargeHorizontal' | 'shrinkVertical' | 'enlargeVertical'
+
+export type ResizeInfo = {
+    shrinkHorizontal: boolean,
+    shrinkVertical: boolean,
+    enlargeHorizontal: boolean,
+    enlargeVertical: boolean
+}
 
 const dashboardStores: Ref<{ [id: string]: StoreObject | { name: string, saved: boolean, isDefault: boolean } }> = ref({})
 
@@ -245,7 +252,7 @@ export function useDashboardWidgetStore([dashboardId, widgetId]: [string, string
         enlargeVertical: false
     })
 
-    watch(widget, w => { canResize.value = calculateCanResize() }, { immediate: true, deep: true })
+    watch(widget, _ => { canResize.value = calculateCanResize() }, { immediate: true, deep: true })
 
     /**
      * 

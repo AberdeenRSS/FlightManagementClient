@@ -6,11 +6,13 @@
 
   
 <script setup lang="ts">
-import { getVesselHistoric, useVesselStore, type Vessel } from '@/stores/vessels';
-import cytoscape from 'cytoscape'
-import { computed, getCurrentInstance, onMounted, reactive, ref, render, toRefs, watch, type WatchStopHandle } from 'vue';
-import * as color from 'color'
-import { until } from '@vueuse/shared';
+import { useObservableShallow } from '@/helper/reactivity';
+import { getVesselMaybeHistoric } from '@/stores/vessels';
+import * as color from 'color';
+import cytoscape from 'cytoscape';
+import { map, shareReplay } from 'rxjs';
+import { onMounted, ref, toRefs, watch } from 'vue';
+
 
 const viewport = ref<HTMLDivElement | null>(null)
 const virtualComp = ref<HTMLDivElement | null>(null)
@@ -46,38 +48,12 @@ const selectedParts = ref({} as { [id: string]: boolean })
 
 watch(selectedParts, p => emit('update:modelValue', p))
 
-const vesselStore = useVesselStore()
-vesselStore.fetchVesselsIfNecessary()
+const vessel$ = getVesselMaybeHistoric(vesselId, version)
 
-const vesselRaw = ref<Vessel | undefined>(undefined)
-
-let stopWatchVessel: WatchStopHandle | undefined = undefined
-
-watch(([vesselId!, version!]), ([id, version]) => {
-    if (!id)
-        return
-
-    stopWatchVessel?.()
-
-    if (!version) {
-        stopWatchVessel = watch(vesselStore.getVesselState(id), v => {
-            if (v?.entity)
-                vesselRaw.value = v.entity
-        }, { immediate: true, deep: true })
-        return
-    }
-
-    vesselStore.fetchHistoricVessel(id, version)
-    stopWatchVessel = watch(getVesselHistoric(vesselStore, id, version), v => {
-        if (v?.entity)
-            vesselRaw.value = v.entity
-    }, { immediate: true, deep: true })
-
-}, { immediate: true, deep: true })
-
-const vesselChartData = computed(() => vesselRaw.value?.parts.map(p => ({ id: p._id, parent: p.parent ?? vesselId.value, name: p.name, type: p.part_type }))
-)
-
+const vesselChartData$ = vessel$.pipe(
+    map(vessel => vessel?.parts.map(p => ({ id: p._id, parent: p.parent ?? vesselId.value, name: p.name, type: p.part_type }))),
+    shareReplay()
+) 
 
 onMounted(() => {
 
@@ -148,14 +124,14 @@ onMounted(() => {
 
     });
 
-    if (filter) {
+    if (filter?.value) {
         watch(filter, f => {
             cy.data('filter', f)
         }, { immediate: true, deep: true })
     }
 
 
-    watch(vesselRaw, v => {
+    watch(useObservableShallow(vessel$), v => {
         if (!v)
             return
 
@@ -176,9 +152,8 @@ onMounted(() => {
 
     }, { immediate: true, deep: true });
 
-    watch(vesselChartData, async (cd) => {
+    watch([useObservableShallow(vesselChartData$), useObservableShallow(vessel$)], ([cd, _]) => {
 
-        await until(vesselRaw).toBeTruthy()
 
         if (!cd)
             return;
@@ -219,7 +194,7 @@ onMounted(() => {
 
     }, { immediate: true })
 
-    if (filter) {
+    if (filter?.value) {
         watch([filter], ([f]) => {
 
             const elems = cyElements.value

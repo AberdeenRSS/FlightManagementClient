@@ -1,14 +1,8 @@
 <script setup lang="ts">
-import { RouterLink, RouterView, useRouter } from 'vue-router'
+import { RouterView, useRouter } from 'vue-router'
 import AuthenticationIndicator from '@/components/user/AuthenticationIndicator.vue';
-import { useFlightDataStore } from './stores/flight_data';
-import { useFlightStore } from './stores/flight';
 
 const router = useRouter()
-
-const flightStore = useFlightStore()
-
-flightStore.subscribeRealtime()
 
 </script>
 

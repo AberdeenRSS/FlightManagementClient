@@ -6,7 +6,7 @@ export type LoginStates = 'requestSilent' | 'default' | 'failed' | 'requestLogin
 
 const tenantId = import.meta.env.VITE_MSAL_TENANT_ID;
 const clientId = import.meta.env.VITE_MSAL_CLIENT_ID;
-const baseUrl = import.meta.env.BASE_URL;
+// const baseUrl = import.meta.env.BASE_URL;
 
 
 // const tenantId = 'ed38e9ed-ef79-4415-b1aa-36e883726313'
@@ -90,8 +90,7 @@ export async function login(){
     loginState.value = 'requestLogin'
 
     try{
-        const res = await msalInstance.value.acquireTokenPopup({scopes: defaultScopes})
-
+       await msalInstance.value.acquireTokenPopup({scopes: defaultScopes})
     }
     catch(err){
         loginState.value = 'failed'
@@ -114,7 +113,7 @@ export async function logout(){
     loginState.value = 'requestLogout'
 
     try{
-        const res = await msalInstance.value.logoutPopup()
+        await msalInstance.value.logoutPopup()
     }
     catch(err){
         loginState.value = 'failed'

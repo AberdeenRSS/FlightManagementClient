@@ -1,21 +1,42 @@
 <template>
     <div class="dashboard-container">
+        <div class="dashboard-elem dashboard">
 
-        <WidgetDashboard v-if="dashboardId" :dashboard-id="dashboardId">
-            <VesselComponentDashboardElem>
+            <WidgetDashboard v-if="dashboardId" :dashboard-id="dashboardId">
+                <VesselComponentDashboardElem>
 
-            </VesselComponentDashboardElem>
-        </WidgetDashboard>
+                </VesselComponentDashboardElem>
+            </WidgetDashboard>
+        </div>
+        <div class="dashboard-elem element-settings" v-if="elementInSettings">
+
+            <ElementSettings :dashboard-widget-id="elementInSettings">
+
+            </ElementSettings>
+        </div>
     </div>
 
 
     <div class="playbar-drawer">
-        <CommandDispatchBar v-if="extraView === 'command'" :vessel-id="vessel_id" :flight-id="id" v-model:command-type="commandDispatchCommandType" v-model:part-id="commandDispatchPartId">
-            <CommandDispatchButton :command-type="commandDispatchCommandType" :part="commandDispatchPartId"></CommandDispatchButton>
-        </CommandDispatchBar>
+
+        <div v-if="extraView === 'command'">
+
+            <div class="cmd-history">
+                <CommandHistory></CommandHistory>
+            </div>
+            <div>
+                <CommandDispatchBar :vessel-id="vessel_id" :flight-id="id" v-model:command-type="commandDispatchCommandType"
+                    v-model:part-id="commandDispatchPartId">
+                    <CommandDispatchButton :command-type="commandDispatchCommandType" :part="commandDispatchPartId">
+                    </CommandDispatchButton>
+                </CommandDispatchBar>
+            </div>
+        </div>
+
         <DashboardSaver v-if="extraView === 'dashboard'" v-model="dashboardId"></DashboardSaver>
-        <AdvancedDatetimeSelector v-if="startTime && endTime" :start-date="startTime" :end-date="endTime" @current-date="currentDate = $event"
-            @range-min-date="rangeMinDate = $event" @range-max-date="rangeMaxDate = $event" @live="$event => live = $event">
+        <AdvancedDatetimeSelector v-if="startTime && endTime" :start-date="startTime" :end-date="endTime"
+            @current-date="currentDate = $event" @range-min-date="rangeMinDate = $event"
+            @range-max-date="rangeMaxDate = $event" @live="$event => live = $event">
 
             <template v-slot:nav-items>
 
@@ -24,14 +45,14 @@
                         <template v-slot:activator="{ props: tooltipProps }">
                             <v-menu>
                                 <template v-slot:activator="{ props }">
-                                    <v-btn variant="plain"  :ripple="false" :rounded="0" color="dark"
-                                        v-bind="{...props, ...tooltipProps}">
+                                    <v-btn variant="plain" :ripple="false" :rounded="0" color="dark"
+                                        v-bind="{ ...props, ...tooltipProps }">
                                         {{ resolutionTexts[resolution] }}
                                     </v-btn>
                                 </template>
                                 <v-list :value="resolution">
                                     <v-list-item v-for="(item, index) in resolutions" :key="index" :value="item">
-                                        <v-list-item-title  @click="setResolution(item)">{{ resolutionTexts[item]
+                                        <v-list-item-title @click="setResolution(item)">{{ resolutionTexts[item]
                                         }}</v-list-item-title>
                                     </v-list-item>
                                 </v-list>
@@ -64,9 +85,30 @@
 
 <style lang="scss">
 .dashboard-container {
+
+    // padding-top: 0.5rem;
     height: calc(100vh - 168px);
-    overflow-y: scroll;
-    padding-top: 0.5rem;
+
+    position: relative;
+
+    .dashboard-elem {
+        position: absolute;
+    }
+
+    .dashboard {
+        height: 100%;
+
+        overflow-y: scroll;
+        overflow-x: hidden;
+    }
+
+    .element-settings {
+        width: 100%;
+        height: 100%;
+
+        background-color: rgba(255, 255, 255, 0.3);
+        backdrop-filter: blur(10px) saturate(100%) contrast(45%) brightness(130%);
+    }
 }
 
 .playbar-drawer {
@@ -94,28 +136,35 @@
   
   
 <script setup lang="ts">
-import { useRoute } from 'vue-router';
-import { useFlightStore } from '@/stores/flight';
-import { computed, ref, watch } from 'vue';
+import ElementSettings from '@/components/FlightDashboardElem/ElementSettings.vue';
 import VesselComponentDashboardElem from '@/components/FlightDashboardElem/VesselComponentDashboardElem.vue';
 import DashboardSaver from '@/components/misc/dashboard/DashboardSaver.vue';
-
-import WidgetDashboard from '@/components/misc/dashboard/WidgedDashboard.vue'
-import AdvancedDatetimeSelector from '@/components/misc/advanced-datetime-selector/AdvancedDatetimeSelector.vue';
-import CommandDispatchBar from '@/components/command/CommandDispatchBar.vue'
+import CommandDispatchBar from '@/components/command/CommandDispatchBar.vue';
 import CommandDispatchButton from '@/components/command/CommandDispatchButton.vue';
-import { useFlightViewState, useProvideFlightView, type TimeRange } from '@/composables/useFlightView'
-import { useCommandStore } from '@/stores/commands';
-import { watchDebounced, watchThrottled } from '@vueuse/shared';
-import type { AggregationLevels } from '@/helper/timeTree';
+import AdvancedDatetimeSelector from '@/components/misc/advanced-datetime-selector/AdvancedDatetimeSelector.vue';
+import CommandHistory from '@/components/command/CommandHistory.vue'
+
+import { computed, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import { useDashboardPersistStore } from '@/components/misc/dashboard/DashboardComposable';
+import WidgetDashboard from '@/components/misc/dashboard/WidgedDashboard.vue';
+import { useFlightViewState, useProvideFlightView, type TimeRange } from '@/composables/useFlightView';
+import type { AggregationLevels } from '@/helper/timeTree';
+import { useCommandStore } from '@/stores/commands';
+import { fetchFlightsForVesselIfNecessary, getFlight, subscribeRealtime as subscribeRealtimeFlight } from '@/stores/flight';
 import { v4 } from 'uuid';
+
+import { useObservableShallow } from '@/helper/reactivity';
+import { fetchHistoricVessel } from '@/stores/vessels';
+import { filter } from 'rxjs';
+
+import { useFlightDataStore } from '@/stores/flight_data';
 
 const route = useRoute()
 const vessel_id = route.params.vessel_id as string
 const id = route.params.id as string
 
-const {availableDashboards, loadDashboardIndicesFromStorage, tryLoadDashboardFromStorage} = useDashboardPersistStore()
+const { availableDashboards, loadDashboardIndicesFromStorage } = useDashboardPersistStore()
 
 loadDashboardIndicesFromStorage()
 const dashboardId = ref<string>(availableDashboards.value.length > 0 ? (availableDashboards.value.find(v => v.isDefault)?.id ?? availableDashboards.value[0].id) : v4())
@@ -126,7 +175,7 @@ const live = ref(false)
 
 const resolutions: (AggregationLevels | 'smallest')[] = ['smallest', 'decisecond', 'second', 'minute', 'hour']
 
-const resolutionTexts: { [P in AggregationLevels | 'smallest']?: string } = {
+const resolutionTexts: { [_ in AggregationLevels | 'smallest']?: string } = {
     'smallest': 'smallest',
     'decisecond': '100ms',
     'second': 'seconds',
@@ -138,21 +187,24 @@ const commandDispatchPartId = ref<string | undefined>()
 const commandDispatchCommandType = ref<string | undefined>()
 
 
-const { setTimeRange, setFlightId, setVesselId, setLive, setResolution } = useProvideFlightView()
+const { setTimeRange, setFlightId, setVesselId, setLive, setResolution, elementInSettings } = useProvideFlightView()
 
 const { resolution, timeRange } = useFlightViewState()
 
 const { subscribeRealtime: subscribeRealtimeCommands, fetchCommandsInTimeFrame } = useCommandStore()
+const { subscribeRealtime: subscribeRealtimeFlightData } = useFlightDataStore()
+
 
 setVesselId(vessel_id)
 setFlightId(id)
 
 watch(live, l => setLive(l), { immediate: true })
 
-const flightStore = useFlightStore()
-flightStore.fetchFlightsForVesselIfNecessary(vessel_id)
+fetchFlightsForVesselIfNecessary(vessel_id)
 
-const flight = computed(() => flightStore.vesselFlights[vessel_id]?.flights[id]?.flight)
+const flight$ = getFlight(vessel_id, id)
+const flight = useObservableShallow(flight$)
+
 
 const startTime = computed(() => flight.value ? new Date(Date.parse(flight.value.start)) : undefined)
 const endTime = computed(() => (flight.value && flight.value.end) ? new Date(Date.parse(flight.value.end)) : undefined)
@@ -165,13 +217,13 @@ const currentDate = ref()
 
 const selectedDatetime = ref<TimeRange>()
 
-watchDebounced([rangeMinDate, rangeMaxDate, currentDate], ([start, end, cur]) => {
+watch([rangeMinDate, rangeMaxDate, currentDate], ([start, end, cur]) => {
 
-    if(!start || !end || !cur)
+    if (!start || !end || !cur)
         return
 
-    if(!selectedDatetime.value){
-        selectedDatetime.value = {start, end, cur}
+    if (!selectedDatetime.value) {
+        selectedDatetime.value = { start, end, cur }
         return
     }
 
@@ -180,20 +232,24 @@ watchDebounced([rangeMinDate, rangeMaxDate, currentDate], ([start, end, cur]) =>
     selectedDatetime.value.cur = cur;
 
     //  = {start, end, cur};
-}, { immediate: true, debounce: 30, maxWait: 30 })
+}, { immediate: true })
 
 watch(selectedDatetime, setTimeRange, { immediate: true, deep: true })
 
 watch(timeRange, r => {
 
-    if(!r)
+    if (!r)
         return
 
     fetchCommandsInTimeFrame(id, r.start, r.end)
 
-}, {immediate: true, deep: true})
+}, { immediate: true, deep: true })
 
+subscribeRealtimeFlight()
+subscribeRealtimeFlightData(id)
 subscribeRealtimeCommands(id)
+
+flight$.pipe(filter(f => !!f)).subscribe(f => fetchHistoricVessel(f!._vessel_id, f!._vessel_version))
 
 </script>
 
