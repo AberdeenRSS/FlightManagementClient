@@ -30,6 +30,10 @@
                         <FlightStatus3D></FlightStatus3D>
                     </div>
 
+                    <div class="flex-grow-1" v-if="widgetData.selectedView === 'Map'">
+                        <GeoMap></GeoMap>
+                    </div>
+
                 </div>
 
             </div>
@@ -83,6 +87,8 @@
 import FlightStatus3D from '../flight_data/3dFlightStatus/3dFlightStatus.vue';
 import FlightStatus from '../flight_data/FlightStatus.vue';
 import SimpleFlightDataChart from '../flight_data/SimpleFlightDataChart.vue';
+import CommandWidget from '../command/CommandWidget.vue';
+import GeoMap from '../flight_data/map/GeoMap.vue';
 
 import { useComponentConfiguration } from '@/composables/componentsConfiguration/componentConfiguration';
 import { useFlightViewState } from '@/composables/useFlightView';
@@ -95,7 +101,7 @@ import { map, shareReplay } from 'rxjs';
 import { computed, inject, ref, watch } from 'vue';
 import { useSelectedPart, useWidgetData } from '../flight_data/flightDashboardElemStoreTypes';
 import { DASHBOARD_WIDGET_ID } from '../misc/dashboard/DashboardComposable';
-import CommandWidget from '../command/CommandWidget.vue';
+
 
 const dashboardWidgetId = inject(DASHBOARD_WIDGET_ID)
 

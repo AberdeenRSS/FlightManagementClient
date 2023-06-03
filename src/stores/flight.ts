@@ -93,6 +93,11 @@ export async function subscribeRealtime() {
 
             const vesselFlights = getOrInitStore(data._vessel_id)
 
+            if(!vesselFlights.value.flights[data._id]){
+                vesselFlights.value.flights[data._id] = { flight: shallowRef(data), loading: ref('LOADED') }
+                return
+            }
+
             const flightState = vesselFlights.value.flights[data._id]
             
             flightState.flight.value = data

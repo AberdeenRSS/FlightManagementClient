@@ -32,6 +32,7 @@ const router = useRouter()
 <style lang="scss">
 @import './assets/main.scss';
 @import 'node_modules/billboard.js/src/scss/billboard.scss';
+@import 'node_modules/leaflet/dist/leaflet.css';
 
 html {
   width: 100vw;

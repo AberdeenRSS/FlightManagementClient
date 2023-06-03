@@ -274,7 +274,10 @@ function toCommandAndDate(command: Command): Command & {start: Date}{
 }
 
 function integrateLastCommand(store: ShallowRef<(Command & {start: Date}) | undefined>, command: Command & {start: Date}){
-    if (command.start.getDate() > (store.value?.start.getDate() ?? 0)){
+
+    const newer = (command.start.getTime() > (store.value?.start.getTime() ?? 0))
+    const same = (command._id === store.value?._id)
+    if (same || newer){
         store.value = command
         triggerRef(store)
     }

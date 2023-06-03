@@ -43,13 +43,15 @@ const viewport = ref<HTMLElement>()
 const viewportSize = useElementSize(viewport)
 
 const dashboardWidgetId = inject(DASHBOARD_WIDGET_ID)
+if (!dashboardWidgetId)
+    throw new Error('Flight Status not used in within a dashboard')
 
 const { vesselId, flightId, timeRange, resolution } = useFlightViewState()
 
 const widgetData = useWidgetData(dashboardWidgetId!)
 
-if (!dashboardWidgetId)
-    throw new Error('Flight Status not used in within a dashboard')
+if (!widgetData.value.selectedSeriesMulti)
+    widgetData.value.selectedSeriesMulti = {}
 
 const throttledTimeRange$ = fromImmediate(timeRange, true).pipe(throttleTime(20))
 
@@ -148,7 +150,7 @@ let oldViewport: HTMLElement | undefined
 
 const scene = new THREE.Scene();
 
-const renderer = new THREE.WebGLRenderer();
+const renderer = new THREE.WebGLRenderer({ antialias: true });
 
 watch([viewport, viewportSize.height, viewportSize.width], ([v, height, width]) => {
 
@@ -227,23 +229,21 @@ watch([viewport, viewportSize.height, viewportSize.width], ([v, height, width]) 
     function animate() {
         requestAnimationFrame(animate);
 
-        if (!quat.value)
+        if (!quat.value){
+            renderer.render(scene, camera);
             return
-
-
-
+        }
 
         // const rotation = oldQuat ? quat.value.multiply(oldQuat.invert()) : quat.value
 
         // oldQuat = quat.value
-
 
         rocket.rotation.x = 0
         rocket.rotation.y = 0
         rocket.rotation.z = 0
 
         rocket.applyQuaternion(quat.value)
-
+        
         renderer.render(scene, camera);
     }
 

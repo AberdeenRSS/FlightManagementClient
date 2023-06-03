@@ -394,11 +394,17 @@ export function getValues<TLeafData extends TimeTreeData, TOwnData extends TimeT
     }).flat()
 }
 
-export function getClosest<TLeafData extends TimeTreeData, TOwnData extends TimeTreeData | never>(node: TimeTreeNode<TLeafData, TOwnData>, date: Date, aggregationLevel?: AggregationLevels): (TLeafData | TOwnData | undefined){
-     
+type TreeFilter<TLeafData extends TimeTreeData, TOwnData extends TimeTreeData | never> = (data: TLeafData | TOwnData) => boolean
+
+export function getClosest<TLeafData extends TimeTreeData, TOwnData extends TimeTreeData | never>(node: TimeTreeNode<TLeafData, TOwnData>, date: Date, aggregationLevel?: AggregationLevels, filter?: TreeFilter<TLeafData, TOwnData>): (TLeafData | TOwnData | undefined){
+    
+    if(!filter)
+        filter = (_) => true
+
     const nodeAggregationLevelIndex = aggregationLevelReverseMap[node.aggregationLevel]
     const aggregationLevelIndex = aggregationLevel ? aggregationLevelReverseMap[aggregationLevel] : undefined
 
+    // Leaf level reached
     if((!aggregationLevel || nodeAggregationLevelIndex < aggregationLevelIndex! ) && node.aggregationLevel === DECISECOND){
 
         const sortedMembers = Object.keys(node.members)
@@ -407,11 +413,11 @@ export function getClosest<TLeafData extends TimeTreeData, TOwnData extends Time
             .map(k => node.members[k] as TLeafData)
             // .sort((a, b) => (a.getDateTime().getTime() - date.getTime()) - (b.getDateTime().getTime() - date.getTime()))
 
-        return sortedMembers.length > 0 ? sortedMembers[0] : undefined
+        return sortedMembers.find(filter)
     }
     
 
-    if(aggregationLevelIndex && nodeAggregationLevelIndex <= aggregationLevelIndex && node.ownMeasurementValue)
+    if(aggregationLevelIndex && nodeAggregationLevelIndex <= aggregationLevelIndex && node.ownMeasurementValue && filter(node.ownMeasurementValue))
         return node.ownMeasurementValue
 
     const memberKeys = Object.keys(node.members).sort()
@@ -434,6 +440,9 @@ export function getClosest<TLeafData extends TimeTreeData, TOwnData extends Time
         const potentialResult = getClosest(member, date, aggregationLevel)
 
         if(!potentialResult)
+            continue
+
+        if(!filter(potentialResult))
             continue
 
         return potentialResult;

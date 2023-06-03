@@ -75,6 +75,7 @@ async function onDispatchCommand() {
         _command_type: commandType!.value,
         _part_id: part!.value,
         create_time: new Date(Date.now()),
+        response_message: '',
         state: 'new',
     } as Command)
 

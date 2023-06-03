@@ -29,6 +29,10 @@
                 <FlightStatus3dSettings :dashboard-widget-id="dashboardWidgetId"></FlightStatus3dSettings>
             </div>
 
+            <div v-if="selectedTab === 'Map'" class="settings-item">
+                <GeoMapSettings :dashboard-widget-id="dashboardWidgetId"></GeoMapSettings>
+            </div>
+
             <div v-if="selectedTab === 'Select Command'" class="settings-item">
                 <CommandDispatchBar v-model:command-type="widgetData.commandDispatchSelectedCommandType"
                     v-model:part-id="commandSelectedPart"></CommandDispatchBar>
@@ -59,6 +63,7 @@ import { getPart } from '@/stores/vessels';
 import { computed, ref, toRefs, watch } from 'vue';
 import { useSelectedPart, useWidgetData } from '../flight_data/flightDashboardElemStoreTypes';
 import { useDashboardWidgetStore } from '../misc/dashboard/DashboardComposable';
+import GeoMapSettings from '../flight_data/map/GeoMapSettings.vue';
 
 
 
@@ -84,7 +89,7 @@ const flight = useObservableShallow(flight$)
 const selectedPart$ = getPart(vessel$, selectedPartId)
 const selectedPart = useObservableShallow(selectedPart$)
 
-const views = ['Graph', 'Status', '3D Model', 'Command']
+const views = ['Graph', 'Status', '3D Model', 'Map', 'Command']
 
 const baseTabs = ['Select View', 'Select Part']
 const tabs = ref<string[]>(baseTabs)
@@ -98,6 +103,8 @@ watch([widgetData], ([wd]) => {
         tabs.value = ['Select View', 'Select Part', 'Status']
     else if (view === '3D Model')
         tabs.value = ['Select View', 'Select Part', '3D Model']
+    else if (view === 'Map')
+        tabs.value = ['Select View', 'Select Part', 'Map']
     else if (view === 'Command')
         tabs.value = ['Select View', 'Select Command']
     else
