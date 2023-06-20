@@ -1,5 +1,9 @@
 <template>
-    <div :id="divID" class="chart"></div>
+    <div class="chart">
+
+        <canvas ref="viewport" class="chart"></canvas>
+    </div>
+
     <!-- {{ loadedDataPoints }}
     <br>
     {{ frameTime }}ms -->
@@ -17,26 +21,44 @@ import { useFlightViewState, type TimeRange } from '@/composables/useFlightView'
 import { getValues, type AggregationLevels } from '@/helper/timeTree';
 import { useFlightDataStore, type FlightDataState } from '@/stores/flight_data';
 import { watchDebounced } from '@vueuse/core';
-import bb, { areaLineRange, zoom, type Chart } from "billboard.js";
-import { inject, onMounted, onUnmounted, ref, shallowRef, triggerRef, watch, type Ref, type WatchStopHandle } from 'vue';
+import { inject, onUnmounted, ref, shallowRef, triggerRef, watch, type Ref, type WatchStopHandle, onMounted } from 'vue';
 import { DASHBOARD_WIDGET_ID } from '../misc/dashboard/DashboardComposable';
-import { useSelectedPart } from './flightDashboardElemStoreTypes';
+import { useSelectedPart, useWidgetData } from './flightDashboardElemStoreTypes';
 
-const divID = `chart_div${Math.floor(Math.random() * 1000000)}`
+import { Chart, type ChartDataset, type DefaultDataPoint } from 'chart.js'
+import { getFlightAndHistoricVessel } from '@/stores/combinedMethods';
+import { useObservableShallow } from '@/helper/reactivity';
+import type { Flight } from '@/stores/flight';
+
+import { format } from 'date-fns'
+import { from, useObservable } from '@vueuse/rxjs';
+import { debounceTime } from 'rxjs'
+
+const FAKE_TIMERANGE_DATASET = 'FAKE_TIMERANGE_DATASET'
+
+const viewport = ref<HTMLCanvasElement>()
 
 const dashboardWidgetId = inject(DASHBOARD_WIDGET_ID)
 
 if (!dashboardWidgetId)
     throw new Error('Resizer not used in within a dashboard')
 
-const { flightId, timeRange, resolution, live } = useFlightViewState()
+const { flightId, timeRange, resolution, live, vesselId } = useFlightViewState()
 
+const widgetData = useWidgetData(dashboardWidgetId)
+
+if (!widgetData.value.graphSeriesSetting)
+    widgetData.value.graphSeriesSetting = {}
+
+const mounted$ = ref(false)
+
+onMounted(() => mounted$.value = true)
 
 const timeRangeDebounced = shallowRef<TimeRange | undefined>(undefined)
-watchDebounced(timeRange, r => {timeRangeDebounced.value = r ? {...r} : undefined; triggerRef(timeRangeDebounced)}, {immediate: true, deep: true, debounce: 250, maxWait: 2000 })
+watchDebounced(timeRange, r => { timeRangeDebounced.value = r ? { ...r } : undefined; triggerRef(timeRangeDebounced) }, { immediate: true, deep: true, debounce: 20, maxWait: 100 })
 
-const vesselPartId = useSelectedPart(dashboardWidgetId)
-
+const { flight$ } = getFlightAndHistoricVessel(vesselId, flightId)
+const selectedPartId = useSelectedPart(dashboardWidgetId)
 
 const { getOrInitStore } = useFlightDataStore()
 
@@ -44,55 +66,44 @@ const data: Ref<FlightDataState | undefined> = shallowRef(undefined)
 
 let removeOldWatch = undefined as (WatchStopHandle | undefined)
 
-watch([flightId, vesselPartId], ([flight, part]) => {
+watch([flightId, selectedPartId], ([flight, part]) => {
 
-    if(!part)
+    if (!part)
         return
 
-    if(removeOldWatch)
+    if (removeOldWatch)
         removeOldWatch()
 
-    removeOldWatch = watch(getOrInitStore(flight, part), d => { data.value = d; triggerRef(data)}, {immediate: true, deep: false})
+    removeOldWatch = watch(getOrInitStore(flight, part), d => { data.value = d; triggerRef(data) }, { immediate: true, deep: false })
 
 }, { immediate: true, deep: false })
 
-const chart$ = ref<Chart | undefined>(undefined)
+const chart$ = shallowRef<Chart | undefined>(undefined)
 const prev$ = ref<string[] | undefined>(undefined)
-
-let prevMax = undefined as (undefined | number)
-let prevMin = undefined as (undefined | number)
-let appendCount = 0
-const MAX_APPEND = 10 // After how many chart updates the data should be reset
-
-const frameTime = ref(0)
-let lastLoadTime = Date.now()
 
 function loadChartData(chart: Chart, flightData: FlightDataState | undefined, range: TimeRange, resolution: AggregationLevels | 'smallest', _: boolean) {
 
-    const startTime = Date.now()
-
     if (!flightData) {
 
-        if (prev$.value)
-            chart.unload({ ids: [...prev$.value] })
+        chart.data.datasets = []
 
         prev$.value = undefined
         return
     }
 
-    let times = ['time'] as (string | Date)[]
-    const data = {} as { [seriesName: string]: (string | number | boolean | number[])[] }
+    type DataObj<T> = { x: number, y: T }
+
 
     const curMeasurements = resolution === 'smallest' ?
         getValues(flightData.measurements, range.start, range.end)
         : getValues(flightData.measurements, range.start, range.end, true, resolution)
 
-    const afterQueryTree = Date.now()
+    const data = {} as { [seriesName: string]: (DataObj<number>)[] }
 
-    let onlyAppend = true;
-    let anyNew  = false
+    const startTimestamp = range.start.getTime()
+    const endTimestamp = range.end.getTime()
 
-    for(const r of curMeasurements){
+    for (const r of curMeasurements) {
 
         const date = r.getDateTime()
 
@@ -101,188 +112,220 @@ function loadChartData(chart: Chart, flightData: FlightDataState | undefined, ra
         if (!date)
             continue;
 
-        if (curTime < range.start.getTime())
+        if (curTime < startTimestamp)
             continue;
 
-        if (curTime > range.end.getTime())
+        if (curTime > endTimestamp)
             continue;
 
-        if (prevMin && curTime < prevMin)
-            onlyAppend = false
-            anyNew = true
-
-        if (prevMax && curTime > prevMax)
-            anyNew = true
-
-        times.push(date)
-        for(const s of Object.keys(r.measurements_aggregated)){
+        for (const s of Object.keys(r.measurements_aggregated)) {
             const value = r.measurements_aggregated[s]
 
             const valueActual = value[0] ?? value[2] ?? value[2]
 
-            if (!data[s])
-                data[s] = [s]
+            if (!s)
+                continue
 
-            if(typeof valueActual === 'number'){
-                const valueTriple = [ value[2], value[0], value[1] ]
-                data[s].push(valueTriple as number[])
+            const minKey = `${s} (min)`
+            const maxKey = `${s} (max)`
+
+
+            if (!data[s]) {
+                data[s] = []
+                data[minKey] = []
+                data[maxKey] = []
+            }
+
+            if (typeof valueActual === 'number') {
+                data[s].push({ x: curTime, y: value[0] })
+                data[minKey].push({ x: curTime, y: value[1] })
+                data[maxKey].push({ x: curTime, y: value[2] })
+
                 continue
             }
-            if (typeof valueActual === 'string'){
-                data[s].push(0)
-                continue
-            }
-            
-            data[s].push(valueActual)
+            // if (typeof valueActual === 'string') {
+            //     continue;
+            //     data[s].push({x: date, y: valueActual})
+            //     continue
+            // }
+
+            // data[s].push(valueActual)
         }
     }
 
-    if(appendCount > MAX_APPEND)
-        onlyAppend = false
+    for(const dataset of chart.data.datasets){
 
-    if(onlyAppend && prevMax){
-        let i = 1
-        while(i < times.length && (times[i] as Date).getTime() < prevMax)
-            i++
-        times = ['time', ...times.slice(i)]
-        for(const key in data)
-            data[key] = [key, ...data[key].slice(i)]
+        if(!dataset.label || !data[dataset.label]){
+            dataset.data = []
+            continue
+        }
+
+        dataset.data = data[dataset.label]
     }
 
-    const afterDataPrepare = Date.now()
+    // Set the fake dataset to have the selected time range
+    // Fake dataset is always at index 0
+    chart.data.datasets[0].data =  [{ x: range.start.getTime(), y: 0 }, { x: range.end.getTime(), y: 0 }]
 
-    chart.load({
-        columns: [
-            times,
-            ...Object.keys(data).map(k => data[k])
-        ],
-        unload: prev$.value?.filter(p => !data[p]),
-        append: onlyAppend,
-    })
-    chart.config('axis.x.min', range.start.getTime(), false)
-    chart.config('axis.x.max', range.end.getTime(), !anyNew)
+    chart.scales['x'].min = range.start.getTime()
+    chart.scales['x'].max = range.end.getTime()
 
+    chart.update()
 
-    const afterChartLoad = Date.now()
-
-    prev$.value = [...Object.keys(data)]
-
-    console.debug(`Triggered chart reload for ${vesselPartId.value}. Took ${afterChartLoad - startTime}ms in total (${afterQueryTree-startTime}ms query, ${afterDataPrepare - afterQueryTree}ms data preparation and ${afterChartLoad-afterDataPrepare}ms for the chart) `)
-
-    frameTime.value = afterChartLoad - lastLoadTime
-
-    lastLoadTime = afterChartLoad
-
-    prevMin = range.start.getTime()
-    prevMax = times.length > 1 ? (times[times.length-1] as Date).getTime() : prevMax
-    if(onlyAppend)
-        appendCount++
-    else
-        appendCount = 0
 
 }
 
-onMounted(() => {
+function makeDatasets(flight: Flight, partId: string) {
+    const availableSeries = flight.measured_parts[partId]
 
-    const chart = bb.generate({
-        data: {
-            x: "time",
-            columns: [
+    const res: ChartDataset<'line', DefaultDataPoint<'line'>>[] = []
 
-            ],
-            type: areaLineRange(),
-        },
-        scatter: {
-            zerobased: true
-        },
-        axis: {
-            x: {
-                type: "timeseries",
-                tick: {
-                    format: "%H:%M:%S",
-                    rotate: 60,
-                    fit: false
+    for (const series of availableSeries) {
+
+        // Get a "random" seed between
+        // 0 and 255 based on the series name
+        // Use it to obtain a random color
+        let seed = 0
+        for (let i = 0; i < series.name.length; i++)
+            seed += series.name.charCodeAt(i)
+
+        seed = seed % 255
+
+        const baseColor = `hsla(${seed}, 90%, 30%, 1)`;
+        const backgroundColor = `hsla(${seed}, 90%, 30%, 0.1)`;
+
+
+        if (series.type === 'float' || series.type === 'int') {
+            res.push({
+                data: [],
+                pointStyle: false,
+                fill: '+1',
+                label: `${series.name} (min)`,
+                showLine: false,
+                backgroundColor: backgroundColor
+            })
+
+            res.push({
+                data: [],
+                pointStyle: 'circle',
+                pointRadius: 1,
+                label: series.name,
+                borderColor: baseColor,
+                borderWidth: 1
+            })
+
+            res.push({
+                data: [],
+                pointStyle: false,
+                fill: '-1',
+                label: `${series.name} (max)`,
+                showLine: false,
+                backgroundColor: backgroundColor
+            })
+        }
+    }
+
+    return res
+}
+
+
+watch([useObservableShallow(flight$), selectedPartId, viewport, mounted$], ([flight, partId, v]) => {
+
+    if (!flight || !partId || !v)
+        return
+
+    if (chart$.value)
+        chart$.value.destroy()
+
+    chart$.value = new Chart(v, {
+        type: 'line',
+        options: {
+            parsing: false,
+            normalized: true,
+            animation: false,
+            transitions: undefined,
+            plugins: {
+                legend: {
+                    display: false
                 }
             },
-            y: {
+            scales: {
+                x: {
+                    type: 'time',
+                    offset: false,
+                    // ticks: {
+                    //     stepSize: 1,
+                    //     sampleSize: 1,
+                    //     callback: function (tickValue, index, ticks) {
+
+                    //         if (!(index % Math.ceil(ticks.length / 5))) {
+                    //             return format(tickValue as number, 'HH:mm:ss')
+                    //         }
+
+                    //     }
+                    // }
+                }
             }
         },
-        tooltip: {
-            format: {
-                title: (x: Date) => `${x.toLocaleTimeString()} ${x.toLocaleDateString()}`,
-                value: function (value, _, __) {
+        data: {
+            datasets: [
+                {
+                    label: FAKE_TIMERANGE_DATASET,
+                    data: [],
+                    showLine: false,
+                    pointStyle: false
+                },
+                ...makeDatasets(flight, partId)
+            ]
+        }
+    })
 
-                    if(typeof value === 'number')
-                        return value.toPrecision(3)
-                    return value
-                }
-            },
-        },
-        point: {
-            r: 1
-        },
-        zoom: {
-            enabled: zoom(),
-        },
-        transition: {
-            duration: 0,
-        },
-        bindto: `#${divID}`
-    });
+}, { immediate: true, deep: false })
 
-    chart$.value = chart
+watch([data, timeRangeDebounced, resolution, live, chart$], ([flightData, range, resolution, isLive, chart]) => {
 
-    // watch(timeRange, range => {
+    if (!flightData || !range || !chart)
+        return
 
-    //     const x = chart.x() as unknown as { [series: string]: Date[] }
-
-    //     const availableSeries = Object.keys(x)
-
-    //     if (!availableSeries || availableSeries.length < 1)
-    //         return
-
-    //     const usedSeries = availableSeries.map(s => x[s]).flat()
-
-    //     if(usedSeries.length < 1)
-    //         return
-
-    //     let minDelta = Number.MAX_SAFE_INTEGER
-    //     let min = usedSeries[0]
-
-    //     for (const s of usedSeries){
-    //         const cur = Math.abs(s.getTime() - range.cur.getTime())
-    //         if(cur > minDelta)
-    //             continue;
-
-    //         minDelta = cur
-    //         min = s
-    //     }
-
-    //     setTimeout(() =>{
-
-    //         // Fix for a bug in the chart library. The chart library doesn't check if the
-    //         // given x value still exists on the chart, if not it cras
-    //         const chartInternal = chart as unknown as { internal: { getIndexByX(x: any): any} }
-    //         if(!chartInternal.internal.getIndexByX(min))
-    //             return
-
-    //         chart.tooltip.show({
-    //             x: min
-    //         })
-    //     });
-    // }, { immediate: true, deep: true })
-
-    watchDebounced([data, timeRangeDebounced, resolution, live], ([flightData, range, resolution, isLive]) => {
-
-        if (!flightData || !range)
-            return
-
-        loadChartData(chart, flightData, range, resolution, isLive)
+    loadChartData(chart, flightData, range, resolution, isLive)
 
 
-    }, { immediate: true, deep: false })
+}, { immediate: true, deep: false })
 
-})
+// Wacht widget data deep without watching chart$
+const widgetDataDeep = useObservableShallow(from(widgetData, {deep: true, immediate: true}).pipe(debounceTime(100)))
+
+watch([widgetDataDeep, chart$], ([wd, chart]) => {
+
+    if (!chart || !wd)
+        return
+
+    for (const key in wd.graphSeriesSetting) {
+        const settings = wd.graphSeriesSetting[key]
+
+        const seriesIndex = chart.data.datasets.findIndex(d => d.label === key)
+        const minSeriesIndex = seriesIndex - 1
+        const maxSeriesIndex = seriesIndex + 1
+
+        if (settings.enabled)
+            chart.show(seriesIndex)
+        else
+            chart.hide(seriesIndex)
+
+        if (settings.enabled && settings.minMaxEnabled) {
+            chart.show(minSeriesIndex)
+            chart.show(maxSeriesIndex)
+        }
+        else {
+            chart.hide(minSeriesIndex)
+            chart.hide(minSeriesIndex)
+        }
+    }
+
+    chart.update()
+
+
+}, { immediate: true, deep: false })
 
 onUnmounted(() => {
     if (chart$.value)

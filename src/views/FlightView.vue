@@ -45,7 +45,7 @@
                         <template v-slot:activator="{ props: tooltipProps }">
                             <v-menu>
                                 <template v-slot:activator="{ props }">
-                                    <v-btn variant="plain" :ripple="false" :rounded="0" color="dark"
+                                    <v-btn variant="plain" :ripple="false" :rounded="0" 
                                         v-bind="{ ...props, ...tooltipProps }">
                                         {{ resolutionTexts[resolution] }}
                                     </v-btn>

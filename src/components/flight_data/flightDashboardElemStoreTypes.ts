@@ -8,7 +8,7 @@ export type FlightDashboardWidgetData = {
     selectedView: string,
     inSettings: boolean,
     commandDispatchSelectedCommandType: string | undefined,
-
+    graphSeriesSetting: { [series: string]: { enabled: boolean, minMaxEnabled: boolean } }
 }
 
 export function  useWidgetData(widgetID: [string, string]){
@@ -28,11 +28,14 @@ export function useSelectedPart(widgetID: [string, string]){
         const newSelected = Object.keys(data.selectedParts).filter(k => data.selectedParts[k])
     
         if (newSelected.length < 1) {
-            selected.value = undefined
+            if(selected.value !== undefined)
+                selected.value = undefined
             return
         }
+
+        if(selected.value !== newSelected[0])
+            selected.value = newSelected[0]
     
-        selected.value = newSelected[0]
     }
 
     watch(widgetData, onPartsSelected, {immediate: true, deep: true})

@@ -16,9 +16,13 @@
                 <v-select density="compact" label="View" v-model="widgetData.selectedView" :items="views"></v-select>
             </div>
 
-            <div v-if="selectedTab === 'Select Part'" class="settings-item" style="height: 100%;">
+            <div v-if="selectedTab === 'Select Part'" class="settings-item" style="height: 80%;">
                 <VesselChart :vessel-id="vesselId" :version="flight?._vessel_version" v-model="widgetData.selectedParts">
                 </VesselChart>
+            </div>
+
+            <div v-if="selectedTab === 'Graph'" class="settings-item">
+                <SimpleFlightDataChartSettings :dashboard-widget-id="dashboardWidgetId"></SimpleFlightDataChartSettings>
             </div>
 
             <div v-if="selectedTab === 'Status'" class="settings-item">
@@ -55,6 +59,8 @@ import FlightStatus3dSettings from '@/components/flight_data/3dFlightStatus/3dFl
 import VesselChart from '@/components/vessel/VesselChart.vue';
 import CommandDispatchBar from '../command/CommandDispatchBar.vue';
 import FlightStatusSettings from '../flight_data/FlightStatusSettings.vue';
+import GeoMapSettings from '../flight_data/map/GeoMapSettings.vue';
+import SimpleFlightDataChartSettings from '../flight_data/SimpleFlightDataChartSettings.vue';
 
 import { useFlightViewState } from '@/composables/useFlightView';
 import { useObservableShallow } from '@/helper/reactivity';
@@ -63,7 +69,6 @@ import { getPart } from '@/stores/vessels';
 import { computed, ref, toRefs, watch } from 'vue';
 import { useSelectedPart, useWidgetData } from '../flight_data/flightDashboardElemStoreTypes';
 import { useDashboardWidgetStore } from '../misc/dashboard/DashboardComposable';
-import GeoMapSettings from '../flight_data/map/GeoMapSettings.vue';
 
 
 
@@ -99,7 +104,9 @@ watch([widgetData], ([wd]) => {
 
     const view = wd.selectedView
 
-    if (view === 'Status')
+    if (view === 'Graph')
+        tabs.value = [...baseTabs, 'Graph']
+    else if (view === 'Status')
         tabs.value = ['Select View', 'Select Part', 'Status']
     else if (view === '3D Model')
         tabs.value = ['Select View', 'Select Part', '3D Model']
