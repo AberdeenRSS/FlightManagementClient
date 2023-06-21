@@ -1,26 +1,27 @@
 <template>
-  <div v-if="!!vessel" class="">
-    <div class="ma-2 font-weight-light text-h3">
-      {{ vessel.name }}
-    </div>
-    
-    <v-divider></v-divider>
+  <div v-if="!!vessel" style="height: 100%; flex-direction: column;" class="d-flex ">
 
-    <div class="d-flex" style="min-height: 80vh;">
+    <div>
+      <div class="ma-2 font-weight-light text-h3">
+        {{ vessel.name }}
+      </div>
+
+    </div>
+
+    <div class="d-flex" style="min-height: 1px;">
       <div style="flex-basis: 200px; flex-grow: 0.4;">
         <VesselChart v-model="selected" :vessel-id="id"></VesselChart>
       </div>
-      <div>
+      <div style="max-height: 100%; overflow-y: scroll; flex-grow: 1;">
         <FlightList :vessel-id="id"></FlightList>
       </div>
     </div>
 
-    
+
   </div>
   <div v-else>
     <v-progress-circular indeterminate></v-progress-circular>
   </div>
-
 </template>
 
 <script setup lang="ts">
@@ -46,6 +47,4 @@ const vessel = useObservableShallow(getVessel(id))
 const selected = ref({})
 
 </script>
-<style>
-
-</style>
+<style></style>

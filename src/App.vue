@@ -23,8 +23,10 @@ const router = useRouter()
     </v-app-bar>
 
     <v-main>
+      <div style="height: 100%;">
 
-      <RouterView />
+        <RouterView />
+      </div>
     </v-main>
   </v-layout>
 </template>
@@ -33,6 +35,10 @@ const router = useRouter()
 @import './assets/main.scss';
 @import 'node_modules/billboard.js/src/scss/billboard.scss';
 @import 'node_modules/leaflet/dist/leaflet.css';
+
+.v-layout {
+  height: 100%;
+}
 
 html {
   width: 100vw;

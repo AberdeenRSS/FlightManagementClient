@@ -25,14 +25,28 @@ import { inject, onUnmounted, ref, shallowRef, triggerRef, watch, type Ref, type
 import { DASHBOARD_WIDGET_ID } from '../misc/dashboard/DashboardComposable';
 import { useSelectedPart, useWidgetData } from './flightDashboardElemStoreTypes';
 
-import { Chart, type ChartDataset, type DefaultDataPoint } from 'chart.js'
+import { Chart, type ChartDataset, type DefaultDataPoint, type LegendItem } from 'chart.js'
 import { getFlightAndHistoricVessel } from '@/stores/combinedMethods';
 import { useObservableShallow } from '@/helper/reactivity';
 import type { Flight } from '@/stores/flight';
 
-import { format } from 'date-fns'
-import { from, useObservable } from '@vueuse/rxjs';
+import { from } from '@vueuse/rxjs';
 import { debounceTime } from 'rxjs'
+import type { InteractionItem } from 'node_modules/chart.js/dist/core/core.interaction';
+import { sign } from 'crypto';
+
+const rndCharMap = [
+    22, 172, 124, 187, 131, 58, 193, 64, 232, 39, 114, 41, 209, 224, 27, 69, 202, 236, 112, 173, 47,
+    173, 196, 219, 164, 198, 97, 88, 129, 34, 161, 238, 238, 24, 119, 21, 254, 170, 189, 54, 113,
+    86, 87, 204, 127, 114, 162, 95, 200, 163, 165, 64, 41, 175, 128, 234, 113, 84, 23, 244, 179, 81,
+    88, 207, 2, 92, 61, 38, 221, 157, 118, 219, 111, 194, 171, 246, 207, 124, 137, 49, 216, 129,
+    105, 72, 84, 47, 38, 151, 72, 211, 48, 123, 80, 104, 231, 61, 186, 198, 15, 39, 231, 94,
+    225, 38, 125, 204, 172, 250, 129, 204, 71, 103, 224, 69, 209, 88, 239, 228, 24, 197,
+    36, 168, 151, 87, 13, 46, 206, 245, 241, 116, 75, 210, 244, 106, 231, 213, 83, 40,
+    114, 16, 56, 98, 94, 77, 0, 87, 64, 123, 190, 42, 172, 230, 81, 173, 154, 151, 127,
+    44, 119, 111, 145, 134, 110, 233, 108, 1, 57, 168, 16, 232, 250, 25, 226, 47, 143,
+    38, 80, 206, 120, 53, 161, 61, 188, 106, 52, 64, 136, 228, 194, 21, 26, 198, 172, 229, 167, 9, 23, 116, 16, 238
+]
 
 const FAKE_TIMERANGE_DATASET = 'FAKE_TIMERANGE_DATASET'
 
@@ -170,6 +184,18 @@ function loadChartData(chart: Chart, flightData: FlightDataState | undefined, ra
     chart.scales['x'].min = range.start.getTime()
     chart.scales['x'].max = range.end.getTime()
 
+    chart.options.plugins!.annotation!.annotations = {
+        currentTime: {
+            type: 'line',
+            xMin: range.cur.getTime(),
+            xMax: range.cur.getTime(),
+            drawTime: 'beforeDatasetsDraw',
+            borderWidth: 1,
+            borderColor: 'black'
+
+        }
+    }
+
     chart.update()
 
 
@@ -182,17 +208,19 @@ function makeDatasets(flight: Flight, partId: string) {
 
     for (const series of availableSeries) {
 
+
         // Get a "random" seed between
         // 0 and 255 based on the series name
         // Use it to obtain a random color
         let seed = 0
-        for (let i = 0; i < series.name.length; i++)
-            seed += series.name.charCodeAt(i)
+        for (let i = 0; i < series.name.length; i++){
+            seed += rndCharMap[series.name.charCodeAt(i)%rndCharMap.length]
+        }
 
         seed = seed % 255
 
-        const baseColor = `hsla(${seed}, 90%, 30%, 1)`;
-        const backgroundColor = `hsla(${seed}, 90%, 30%, 0.1)`;
+        const baseColor = `hsla(${seed}, 100%, 30%, 1)`;
+        const backgroundColor = `hsla(${seed}, 100%, 30%, 0.1)`;
 
 
         if (series.type === 'float' || series.type === 'int') {
@@ -228,7 +256,6 @@ function makeDatasets(flight: Flight, partId: string) {
     return res
 }
 
-
 watch([useObservableShallow(flight$), selectedPartId, viewport, mounted$], ([flight, partId, v]) => {
 
     if (!flight || !partId || !v)
@@ -243,10 +270,40 @@ watch([useObservableShallow(flight$), selectedPartId, viewport, mounted$], ([fli
             parsing: false,
             normalized: true,
             animation: false,
+            maintainAspectRatio: false,
             transitions: undefined,
             plugins: {
                 legend: {
-                    display: false
+                    display: true,
+                    position: 'right',
+                    align: 'start',
+                    labels: {
+                        boxWidth: 10,
+                    
+                        generateLabels(chart){
+                            return chart.data.datasets.map((d, i)=> ({
+                                text: d.label,
+                                // fontColor: d.borderColor,
+                                fillStyle: d.borderColor,
+                                datasetIndex: i,
+                            } as LegendItem))
+                        },
+                        filter: (item: LegendItem, _) => !item.text.endsWith('(min)') && !item.text.endsWith('(max)') && item.text !== FAKE_TIMERANGE_DATASET
+                    },
+                    onHover(_, item, __){
+
+                        const lastHoveredSeries = item.datasetIndex
+
+                        if(lastHoveredSeries === undefined)
+                            return
+
+                        const points = this.chart.data.datasets[lastHoveredSeries].data.map((_, i) => ({index: i, datasetIndex: lastHoveredSeries!}))
+                        this.chart.setActiveElements(points)
+                        this.chart.update()
+                    }
+                },
+                annotation: {
+                    annotations: {}
                 }
             },
             scales: {

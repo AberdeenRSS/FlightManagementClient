@@ -1,5 +1,5 @@
 <template>
-    <div ref="viewport" class="viewport"></div>
+    <div ref="viewport" class="viewport" style="height: 100%;"></div>
 
     <div ref="virtualComp"> </div>
 </template>
@@ -55,7 +55,10 @@ const vesselChartData$ = vessel$.pipe(
     shareReplay()
 ) 
 
-onMounted(() => {
+watch(viewport, v => {
+
+    if(!v)
+        return
 
     let oldNodes: cytoscape.CollectionReturnValue | undefined = undefined;
     let oldVessel: cytoscape.CollectionReturnValue | undefined = undefined;
@@ -64,7 +67,7 @@ onMounted(() => {
 
     const cy = cytoscape({
 
-        container: viewport.value!, // container to render in
+        container: v, // container to render in
         elements: [ // list of graph elements to start with
 
         ],
@@ -217,7 +220,7 @@ onMounted(() => {
     }
 
 
-})
+}, {immediate: true})
 
 
 

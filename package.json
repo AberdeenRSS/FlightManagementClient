@@ -22,6 +22,7 @@
     "billboard.js": "~3.7",
     "chart.js": "^4.3.0",
     "chartjs-adapter-date-fns": "^3.0.0",
+    "chartjs-plugin-annotation": "^3.0.1",
     "color": "^4.2.3",
     "cytoscape": "^3.25.0",
     "cytoscape-dom-node": "^1.1.1",

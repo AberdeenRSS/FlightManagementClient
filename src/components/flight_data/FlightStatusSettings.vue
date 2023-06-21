@@ -7,7 +7,7 @@
 <script lang="ts" setup>
 
 import { toRefs } from 'vue'
-import { useSelectedPart } from './flightDashboardElemStoreTypes';
+import { useSelectedPart, useWidgetData } from './flightDashboardElemStoreTypes';
 import { useFlightViewState } from '@/composables/useFlightView';
 import { getFlightAndHistoricVessel } from '@/stores/combinedMethods';
 import { combineLatest, map } from 'rxjs';
@@ -22,6 +22,8 @@ const props = defineProps({
 const { dashboardWidgetId } = toRefs(props)
 const { vesselId, flightId } = useFlightViewState()
 const { vessel$, flight$ } = getFlightAndHistoricVessel(vesselId, flightId)
+
+const widgetData = useWidgetData(dashboardWidgetId.value as [string, string])
 
 
 const selectedPartId = useSelectedPart(dashboardWidgetId.value as [string, string])
