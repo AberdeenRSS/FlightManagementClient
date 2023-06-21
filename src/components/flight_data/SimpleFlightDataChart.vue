@@ -32,8 +32,6 @@ import type { Flight } from '@/stores/flight';
 
 import { from } from '@vueuse/rxjs';
 import { debounceTime } from 'rxjs'
-import type { InteractionItem } from 'node_modules/chart.js/dist/core/core.interaction';
-import { sign } from 'crypto';
 
 const rndCharMap = [
     22, 172, 124, 187, 131, 58, 193, 64, 232, 39, 114, 41, 209, 224, 27, 69, 202, 236, 112, 173, 47,

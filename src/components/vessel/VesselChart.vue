@@ -11,7 +11,7 @@ import { getVesselMaybeHistoric } from '@/stores/vessels';
 import * as color from 'color';
 import cytoscape from 'cytoscape';
 import { map, shareReplay } from 'rxjs';
-import { onMounted, ref, toRefs, watch } from 'vue';
+import { ref, toRefs, watch } from 'vue';
 
 
 const viewport = ref<HTMLDivElement | null>(null)
