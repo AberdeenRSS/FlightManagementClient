@@ -11,6 +11,8 @@ const serverScope = import.meta.env.VITE_RSS_FLIGHT_SERVER_SCOPE;
 
 async function beforeFetch({ options }: BeforeFetchContext): Promise<Partial<BeforeFetchContext>> {
 
+    return {options}
+
     const { activeAccount } = useUserData()
     const { msalInstance } = useMsal()
 
@@ -71,19 +73,19 @@ export function useRssWebSocket(namespace?: string) {
 }
 
 async function buildNewWebsocketConnection(namespace?: string) {
-    const { activeAccount } = useUserData()
-    const { msalInstance } = useMsal()
+    // const { activeAccount } = useUserData()
+    // const { msalInstance } = useMsal()
 
     // Wait until there is current (logged in account)
-    const account = await until(activeAccount).toBeTruthy()
+    // const account = await until(activeAccount).toBeTruthy()
 
     // Get an authentication token to make an authenticated request to the api (should be cached most of the time)
-    const token = await msalInstance.value.acquireTokenSilent({ scopes: [serverScope], account: account! })
+    // const token = await msalInstance.value.acquireTokenSilent({ scopes: [serverScope], account: account! })
 
     const ws = socketIoManager[namespace ?? BASE_NAMESPACE].value = io(`${baseUri}`, {
-        auth: { token: token.accessToken },
+        // auth: { token: token.accessToken },
         transports: ['websocket'],
-        extraHeaders: { Authorization: `${token.accessToken}` },
+        // extraHeaders: { Authorization: `${token.accessToken}` },
         autoConnect: true
     })
 

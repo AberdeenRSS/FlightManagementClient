@@ -35,7 +35,7 @@ const activeAccount = ref(msalInstance.value.getActiveAccount())
 const loginState: Ref<LoginStates> = ref('default')
 
 // Have a auto silent login at application start
-loginSilent()
+// loginSilent()
 
 export function useUserData(){
 

@@ -242,10 +242,10 @@ async function subscribeRealtime(flightId: string){
         })
 
         ws.on('connect', () => {
-            ws.emit('command.subscribe', flightId)
+            ws.emit('command.subscribe_as_client', flightId)
         })
 
-        ws.emit('command.subscribe', flightId)
+        ws.emit('command.subscribe_as_client', flightId)
             
 
     }, {immediate: true})
