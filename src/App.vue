@@ -20,7 +20,6 @@ const existingIndices = localStorage.getItem('DASHBOARD_INDICES') || '[]'
 // @ts-ignore
 const hasDefault = JSON.parse(existingIndices).some((index) => index.isDefault)
 
-
 // Preset Index
 const PresetIndex = {
   id:"RocketryPreset",
