@@ -10,7 +10,6 @@ import { PresetDashboard } from './assets/presets/PresetDashboard.js'
 const router = useRouter()
 
 // Add Preset Dashboard
-console.log(JSON.stringify(PresetDashboard))
 localStorage.setItem('DASHBOARD_RocketryPreset',JSON.stringify(PresetDashboard))
 
 // Get existing indices
