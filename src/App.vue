@@ -2,7 +2,34 @@
 import { RouterView, useRouter } from 'vue-router'
 import AuthenticationIndicator from '@/components/user/AuthenticationIndicator.vue';
 
+
+/* eslint-disable */ 
+// @ts-ignore
+// It doesnt like me importing this because it has the any type
+import { PresetDashboard } from './assets/presets/PresetDashboard.js'
+/* eslint-enable */
+
 const router = useRouter()
+
+// Add Preset Dashboard
+localStorage.setItem('DASHBOARD_RocketryPreset',JSON.stringify(PresetDashboard))
+
+// Get existing indices
+const existingIndices = localStorage.getItem('DASHBOARD_INDICES') || '[]'
+
+// Preset Index
+const PresetIndex = {
+  id:"RocketryPreset",
+  name:"RocketryPreset",
+  saved:true,
+  isDefault:true,
+}
+
+// Add the Preset Index
+if (!existingIndices.includes(PresetIndex.id)) {
+  localStorage.setItem('DASHBOARD_INDICES',JSON.stringify([...JSON.parse(existingIndices),PresetIndex]))
+}
+
 
 </script>
 
