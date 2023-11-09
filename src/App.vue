@@ -4,6 +4,36 @@ import AuthenticationIndicator from '@/components/user/AuthenticationIndicator.v
 
 const router = useRouter()
 
+/* eslint-disable */ 
+// @ts-ignore
+// It doesnt like me importing this because it has the any type
+import { PresetDashboard } from './assets/presets/PresetDashboard.js'
+
+
+// Add Preset Dashboard
+localStorage.setItem('DASHBOARD_RocketryPreset',JSON.stringify(PresetDashboard))
+
+// Get existing indices
+const existingIndices = localStorage.getItem('DASHBOARD_INDICES') || '[]'
+
+// Get a boolean for if the existingIndices already has a default index
+// @ts-ignore
+const hasDefault = JSON.parse(existingIndices).some((index) => index.isDefault)
+
+// Preset Index
+const PresetIndex = {
+  id:"RocketryPreset",
+  name:"RocketryPreset",
+  saved:true,
+  isDefault:!hasDefault,
+}
+
+// Add the Preset Index
+if (!existingIndices.includes(PresetIndex.id)) {
+  localStorage.setItem('DASHBOARD_INDICES',JSON.stringify([...JSON.parse(existingIndices),PresetIndex]))
+}
+
+/* eslint-enable */
 </script>
 
 <template>
