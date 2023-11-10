@@ -23,7 +23,7 @@
                     <td><b>{{ item.entity?.name }}</b></td>
                     <td>{{ item.entity?._version }}</td>
                     <td>{{ item.entity?.parts.length }}</td>
-
+                    <td><AddUserPermission :vesselId="item.entity!._id"></AddUserPermission> </td>
                     <td><v-btn @click="router.push(`./vessel/details/${item.entity?._id}`)">Flights</v-btn></td>
                 </tr>
             </tbody>
@@ -34,6 +34,7 @@
 <script setup lang="ts">
 import { useObservableShallow } from '@/helper/reactivity';
 import { fetchVesselsIfNecessary, getVessels } from '@/stores/vessels';
+import AddUserPermission from '../permissions/AddUserPermission.vue';
 
 import { useRouter } from 'vue-router';
 
