@@ -12,10 +12,12 @@
 
         <div class="d-flex flex-column flex-grow" style="width:100%; height: 100%;">
 
-            <div v-if="selectedTab === 'Select View'" class="settings-item">
-                <v-select density="compact" label="View" v-model="widgetData.selectedView" :items="views"></v-select>
+            <div v-if="selectedTab === 'Select View'" class="settings-item mt-3">
+                <v-radio-group v-for="(view,index) in views" :key="index" density="compact" v-model="widgetData.selectedView">
+                    <v-radio :label="view" :value="view"></v-radio>
+                </v-radio-group>
             </div>
-
+            
             <div v-if="selectedTab === 'Select Part'" class="settings-item" style="height: 80%;">
                 <VesselChart :vessel-id="vesselId" :version="flight?._vessel_version" v-model="widgetData.selectedParts">
                 </VesselChart>
