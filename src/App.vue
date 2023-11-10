@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { RouterView, useRouter } from 'vue-router'
+import AuthenticationIndicator from './components/user/AuthenticationIndicator.vue';
+import { useUser } from './composables/auth/useUser';
 
 const router = useRouter()
+
+const { trySilentLogin } = useUser()
+
+trySilentLogin()
 
 </script>
 
@@ -17,7 +23,7 @@ const router = useRouter()
 
 
       <template v-slot:append>
-        <!-- <AuthenticationIndicator></AuthenticationIndicator> -->
+        <AuthenticationIndicator></AuthenticationIndicator>
       </template>
     </v-app-bar>
 

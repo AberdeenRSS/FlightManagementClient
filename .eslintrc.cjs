@@ -22,6 +22,8 @@ module.exports = {
     "@typescript-eslint/no-non-null-assertion": "off",
     "no-unused-vars": "off",
     "@typescript-eslint/no-unused-vars": ["warn", {"varsIgnorePattern": "^_", "argsIgnorePattern": "^_" }],
-    "vue/no-ref-as-operand": "off"
+    "vue/no-ref-as-operand": "off",
+    "vue/multi-word-component-names": "off",
+    "no-useless-escape": "off"
   }
 }

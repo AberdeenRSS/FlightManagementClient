@@ -1,8 +1,26 @@
 <script setup lang="ts">
-import { useAuthFlow, useUserData, login, logout } from '@/composables/msal/useMsal';
+import { useUser } from '@/composables/auth/useUser';
+import { useRouter } from 'vue-router';
+import { ref } from 'vue';
 
-const { activeAccount } = useUserData()
-const { loginState } = useAuthFlow()
+const router = useRouter()
+
+const loginState = ref<string>('default')
+
+const { currentUser, logout } = useUser()
+
+function login(){
+    router.push('login')
+}
+
+function onLogout(){
+    logout()
+}
+
+function register(){
+    router.push('register')
+}
+
 </script>
 
 <template>
@@ -10,13 +28,13 @@ const { loginState } = useAuthFlow()
     </v-progress-circular>
     <div class="d-flex align-center" v-else>
 
-        <template v-if="activeAccount">
-            <div>{{ activeAccount.username }}</div>
-            <v-btn @click="logout">Logout</v-btn>
+        <template v-if="currentUser">
+            <div>{{ currentUser.name }}</div>
+            <v-btn @click="onLogout">Logout</v-btn>
         </template>
         <template v-else>
             <v-btn @click="login">Login</v-btn>
+            <v-btn @click="register">Register</v-btn>
         </template>
     </div>
-
 </template>

@@ -46,6 +46,7 @@
     "@types/three": "^0.152.0",
     "@types/uuid": "^9.0.1",
     "@types/webfontloader": "^1.6.35",
+    "@vitejs/plugin-basic-ssl": "^1.0.1",
     "@vitejs/plugin-vue": "^4.2.3",
     "@vue/eslint-config-typescript": "^11.0.3",
     "@vue/test-utils": "^2.3.2",

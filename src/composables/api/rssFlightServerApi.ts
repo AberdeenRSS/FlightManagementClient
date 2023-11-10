@@ -1,31 +1,28 @@
 // fetch.js
-import { createFetch, until, type BeforeFetchContext } from '@vueuse/core'
+import { createFetch, until, type BeforeFetchContext, type AfterFetchContext } from '@vueuse/core'
 import { Socket, io } from "socket.io-client"
 import { shallowRef, triggerRef, type Ref } from 'vue'
 import { useMsal, useUserData } from '../msal/useMsal'
+import { useUser } from '../auth/useUser';
 
 
 const baseUri = import.meta.env.VITE_RSS_FLIGHT_SERVER_URL;
 const serverScope = import.meta.env.VITE_RSS_FLIGHT_SERVER_SCOPE;
 
+export function useRssApiBaseUri(){
+    return baseUri
+}
+
 
 async function beforeFetch({ options }: BeforeFetchContext): Promise<Partial<BeforeFetchContext>> {
 
-    return {options}
-
-    const { activeAccount } = useUserData()
-    const { msalInstance } = useMsal()
-
-    // Wait until there is current (logged in account)
-    const account = await until(activeAccount).toBeTruthy()
-
-    // Get an authentication token to make an authenticated request to the api (should be cached most of the time)
-    const token = await msalInstance.value.acquireTokenSilent({ scopes: [serverScope], account: account! })
+    const { currentUser } = useUser()        
 
     if(!options.headers)
         options.headers = {} as Record<string, string>
 
-    (options.headers as Record<string, string>)['Authorization'] = `Bearer ${token.accessToken}`
+    if(currentUser.value)
+        (options.headers as Record<string, string>)['Authorization'] = `Bearer ${currentUser.value.jwt_token}`
 
     return { options }
 }
@@ -39,7 +36,7 @@ async function beforeFetch({ options }: BeforeFetchContext): Promise<Partial<Bef
 export const fetchRssApi = createFetch({
     baseUrl: baseUri,
     options: {
-        beforeFetch
+        beforeFetch,
     },
     fetchOptions: {
         mode: 'cors',
