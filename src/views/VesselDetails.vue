@@ -13,8 +13,6 @@
         <VesselChart v-model="selected" :vessel-id="id"></VesselChart>
       </div>
 
-      
-
       <div style="max-height: 100%; overflow-y: scroll; flex-grow: 1;">
         <FlightList :vessel-id="id"></FlightList>
       </div>

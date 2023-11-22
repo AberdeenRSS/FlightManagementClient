@@ -17,7 +17,6 @@
         </v-card-title>
         <v-card-text>
           <v-container>
-            <v-alert v-if="error && error!=''" :text="error" type="error"></v-alert>
                 <p>Give User Permissions</p>
                 <v-text-field v-model="userEmail"
                     label="User Email"
@@ -48,7 +47,6 @@
             color="blue-darken-1"
             variant="text"
             @click="addInputtedUser"
-            :loading="!isFinished"
           >
             Add
           </v-btn>
@@ -77,14 +75,12 @@
 
 <script lang="ts" setup>
 
-    import { ref,toRefs } from 'vue'
+    import { ref,toRefs,computed } from 'vue'
     import { getVessel } from '@/stores/vessels'
     import { useObservableShallow } from '@/helper/reactivity'
-
-    import { postRssApi } from '@/composables/api/rssFlightServerApi';
-
-    const {error, isFinished, post} = postRssApi('/vessel/give-permisssion', {}, {immediate: false})
-   
+    import { useAuthHeaders } from '../../composables/api/getHeaders'
+    import axios from 'axios'
+    import { useRssApiBaseUri } from '../../composables/api/rssFlightServerApi'
 
     const props = defineProps({
         vesselId: {
@@ -97,22 +93,27 @@
 
     const vessel = useObservableShallow(getVessel(vesselId))
 
+    console.log(vessel)
+
     const dialog = ref(false)
     const userEmail = ref()
     const userPermission = ref()
+
+    const authHeaders = useAuthHeaders();
     
-    console.log(error)
+    const url = computed(() => {
+      return `/vessel/set_permission/${vesselId.value}/${userEmail.value}/${userPermission.value.toLowerCase()}`
+    })
 
-
-    function addInputtedUser() {
-      if (!userEmail.value || !userPermission.value) {
-        return
+    async function addInputtedUser() {
+      try {
+        const res = await axios.post(`${useRssApiBaseUri()}${url.value}`, {}, { headers: authHeaders.value })
+        
+      } catch (e) {
+        console.log(e)
       }
-      
-
-      post({email: userEmail.value, permission: userPermission.value, vesselId: vesselId.value},'json')
-
-      dialog.value = false
     }
 
+//            <v-alert v-if="error && error!=''" :text="error" type="error"></v-alert>
 </script>
+

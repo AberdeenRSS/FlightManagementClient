@@ -1,6 +1,9 @@
 <template>
     <div class="vessel-list">
-
+        <div>
+            <v-text-field v-model="newVesselName" label="New Vessel Name"></v-text-field>
+            <v-btn @click="addVessel">Add Vessel</v-btn>
+        </div>
         <v-table>
             <thead>
                 <tr>
@@ -37,13 +40,36 @@ import { fetchVesselsIfNecessary, getVessels } from '@/stores/vessels';
 import AddUserPermission from '../permissions/AddUserPermission.vue';
 
 import { useRouter } from 'vue-router';
+import { computed, ref } from 'vue';
+import {useAuthHeaders } from '../../composables/api/getHeaders'
+import axios from 'axios';
+import { useRssApiBaseUri } from '../../composables/api/rssFlightServerApi'
 
+const newVesselName = ref('')
+
+const authHeaders = useAuthHeaders();
+
+const url = computed(() => {
+    return `/vessel/create_vessel/${newVesselName.value}`
+})
 
 const router = useRouter()
 
 const vessels = useObservableShallow(getVessels(), { initialValue: undefined })
 
 fetchVesselsIfNecessary()
+
+
+async function addVessel() {
+    if (newVesselName.value.length == 0) {
+        alert("No name given")
+    }
+    try {
+        const res = await axios.post(`${useRssApiBaseUri()}${url.value}`, {}, { headers: authHeaders.value })
+    } catch(e) {
+        alert("Error creating vessel"+e)
+    }
+}
 
 </script>
 
