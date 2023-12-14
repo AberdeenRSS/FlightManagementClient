@@ -1,4 +1,5 @@
 import { ref } from "vue"
+import { ReplaySubject } from 'rxjs'
 
 export type User = {
     uid: string,
@@ -22,7 +23,9 @@ function parseJwt(token: string) {
     return JSON.parse(jsonPayload);
 }
 
-const currentUser = ref<User |undefined>()
+const expirationEvent = new ReplaySubject<User>()
+
+const currentUser = ref<User | undefined>()
 
 const authStatus = ref<AuthStatus>({loading: false})
 
@@ -31,6 +34,8 @@ function useToken(token_response: {token: string, refresh_token: string}){
 
     localStorage.setItem('JWT', JSON.stringify(token_response))
 
+    const validUntil = new Date(decodedToken['exp']*1000)
+
     currentUser.value = { 
         unique_name: decodedToken['unique_name'],
         jwt_token: token_response.token,
@@ -38,6 +43,27 @@ function useToken(token_response: {token: string, refresh_token: string}){
         name: decodedToken['name'],
         uid: decodedToken['uid']
     }
+
+    const timeUntilExpiration = (validUntil.getTime() - Date.now()) - 1000*60*10
+
+    if (timeUntilExpiration <= 0){
+        expirationEvent.next(currentUser.value)
+        return
+    }
+
+    const oldToken = token_response.token
+
+    setTimeout(() => {
+
+        if(!currentUser.value)
+            return
+
+        if(currentUser.value.jwt_token != oldToken)
+            return
+
+        expirationEvent.next(currentUser.value)
+
+    }, timeUntilExpiration)
 }
 
 /**
@@ -62,6 +88,7 @@ export function useUser(){
     return {
         currentUser,
         authStatus,
+        expirationEvent,
         useToken,
         trySilentLogin,
         logout

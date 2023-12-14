@@ -43,6 +43,7 @@ export const fetchRssApi = createFetch({
     },
 })
 
+
 export const postRssApi = createFetch({
     baseUrl: baseUri,
     options: {
@@ -70,19 +71,15 @@ export function useRssWebSocket(namespace?: string) {
 }
 
 async function buildNewWebsocketConnection(namespace?: string) {
-    // const { activeAccount } = useUserData()
-    // const { msalInstance } = useMsal()
+    const { currentUser } = useUser()
 
     // Wait until there is current (logged in account)
-    // const account = await until(activeAccount).toBeTruthy()
-
-    // Get an authentication token to make an authenticated request to the api (should be cached most of the time)
-    // const token = await msalInstance.value.acquireTokenSilent({ scopes: [serverScope], account: account! })
+    const account = await until(currentUser).toBeTruthy()
 
     const ws = socketIoManager[namespace ?? BASE_NAMESPACE].value = io(`${baseUri}`, {
-        // auth: { token: token.accessToken },
+        auth: { token: account.jwt_token },
         transports: ['websocket'],
-        // extraHeaders: { Authorization: `${token.accessToken}` },
+        extraHeaders: { Authorization: `${account.jwt_token}` },
         autoConnect: true
     })
 

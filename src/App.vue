@@ -2,10 +2,12 @@
 import { RouterView, useRouter } from 'vue-router'
 import AuthenticationIndicator from './components/user/AuthenticationIndicator.vue';
 import { useUser } from './composables/auth/useUser';
+import { useRssOAuth } from './composables/auth/rss-oauth/useRssOAuth';
 
 const router = useRouter()
 
 const { trySilentLogin } = useUser()
+const _ = useRssOAuth()
 
 trySilentLogin()
 

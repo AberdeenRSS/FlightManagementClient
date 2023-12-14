@@ -3,25 +3,44 @@ import { useUser } from "../useUser"
 import { useRssApiBaseUri } from "@/composables/api/rssFlightServerApi"
 import axios from "axios"
 import { ref } from "vue"
+import { Subscription } from 'rxjs'
+import { useRouter } from "vue-router"
 
 
+let expirationSubscription: Subscription | undefined = undefined
 
 export function useRssOAuth() {
 
     const registerError = ref<string | undefined>()
     const loginError = ref<string | undefined>()
 
-    const { authStatus, currentUser, useToken } = useUser()
+    const { push } = useRouter()
+
+    const { authStatus, currentUser, expirationEvent, useToken } = useUser()
+
+    if (!expirationSubscription) {
+        expirationSubscription = expirationEvent.subscribe(async _ => {
+
+            const success = await tryRefreshToken()
+
+            if (success)
+                return
+
+            currentUser.value = undefined
+            push('login')
+
+        })
+    }
 
 
     async function register(userName: string, email: string, password: string) {
 
-        if (currentUser.value){
+        if (currentUser.value) {
             registerError.value = 'Already logged in'
-            return 
+            return
         }
 
-        if(authStatus.value.loading){
+        if (authStatus.value.loading) {
             registerError.value = 'Previous request still pending'
             return
         }
@@ -35,7 +54,7 @@ export function useRssOAuth() {
 
             if (res.status >= 200 && res.status < 300) {
 
-                const auth_response = JSON.parse(res.data)
+                const auth_response = res.data
 
                 useToken(auth_response)
 
@@ -64,12 +83,12 @@ export function useRssOAuth() {
 
     async function login(email: string, password: string) {
 
-        if (currentUser.value){
+        if (currentUser.value) {
             loginError.value = 'Already logged in'
-            return 
+            return
         }
 
-        if(authStatus.value.loading){
+        if (authStatus.value.loading) {
             loginError.value = 'Previous request still pending'
             return
         }
@@ -108,13 +127,53 @@ export function useRssOAuth() {
         }
     }
 
-    async function tryRefreshToken(){
+    async function tryRefreshToken(): Promise<boolean> {
 
-        
-        if(!currentUser.value)
-            return
 
-        
+        if (!currentUser.value)
+            return false
+
+        if (authStatus.value.loading) {
+            loginError.value = 'Previous request still pending'
+            return false
+        }
+
+        authStatus.value = { loading: true }
+        loginError.value = undefined
+
+        try {
+
+            const res = await axios.post(`${useRssApiBaseUri()}/auth/authorization_code_flow`, currentUser.value.refresh_token)
+
+            if (res.status >= 200 && res.status < 300) {
+
+                const token = res.data
+
+                useToken(token)
+
+                return true
+            }
+
+            loginError.value = res.data
+
+            return true
+
+        }
+        catch (err) {
+
+            if (hasOwn(err as Record<string, string>, 'response')) {
+                const data = (err as Record<string, Record<string, string>>).response
+                loginError.value = data.data
+                return false
+            }
+
+            loginError.value = 'Unknown error while trying to register'
+        }
+        finally {
+            authStatus.value = { ...authStatus.value, loading: false }
+        }
+
+        return false
     }
 
     return {
