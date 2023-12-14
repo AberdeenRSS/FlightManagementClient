@@ -58,7 +58,11 @@
             <v-expansion-panel
                 title="Existing Users">
                 <v-expansion-panel-text>
-                    <p>User Table Goes Here</p>
+                    <v-card v-for="(item, key) of Object.keys(vessel!.permissions)" :key="key">
+                        <v-card-title>{{ item }}</v-card-title>
+                        <v-card-text>{{ vessel!.permissions[item] }}</v-card-text>
+                    </v-card>
+
                 </v-expansion-panel-text>
             </v-expansion-panel>
         </v-expansion-panels>
@@ -99,6 +103,17 @@
     const userEmail = ref()
     const userPermission = ref()
 
+    async function getPermittedUserNames() {
+        try {
+          const res = await axios.post(`${useRssApiBaseUri()}/user/get_names`, permittedUserIds.value, { headers: authHeaders.value })
+          console.log(res)
+        } catch (e) {
+          console.log(e)
+        }
+    }
+
+    
+
     const authHeaders = useAuthHeaders();
     
     const url = computed(() => {
@@ -113,7 +128,6 @@
         console.log(e)
       }
     }
-
     // Get all users with permissions and display
 
     // Remove user button
