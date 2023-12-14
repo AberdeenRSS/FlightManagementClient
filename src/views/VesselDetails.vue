@@ -7,12 +7,16 @@
             </div>
 
         </div>
-
-        <v-btn @click="createAuthCode" :loading="tokenLoading">Create Auth Code</v-btn>
-
-        <v-alert v-if="tokenError" :text="tokenError" type="error"></v-alert>
-
-        <div v-if="token">{{ token }}</div>
+        <v-card>
+            <v-card-title v-if="token">Auth Code</v-card-title>
+            <v-alert v-if="tokenError" :text="tokenError" type="error"></v-alert>
+            
+            <v-card-text v-if="token">{{ token }}</v-card-text>
+            <v-card-actions>
+                <v-btn @click="createAuthCode" :loading="tokenLoading">Create Auth Code</v-btn>
+                <v-btn @click="copyAuthToken" v-if="token">Copy</v-btn>
+            </v-card-actions>
+        </v-card>
 
         <div class="d-flex" style="min-height: 1px;">
             <div style="flex-basis: 200px; flex-grow: 0.4;">
@@ -60,6 +64,11 @@ subscribeRealtime()
 const vessel = useObservableShallow(getVessel(id))
 
 const selected = ref({})
+
+function copyAuthToken() {
+    navigator.clipboard.writeText(token.value);
+    alert("Successfully copied token!")
+}
 
 async function createAuthCode() {
 
