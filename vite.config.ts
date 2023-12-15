@@ -25,7 +25,7 @@ export default defineConfig({
         lintCommand: 'eslint "./src/**/*.{ts,tsx,vue}"'
       }
     }),
-    basicSsl()
+    // basicSsl()
 	],
   resolve: {
     alias: {
