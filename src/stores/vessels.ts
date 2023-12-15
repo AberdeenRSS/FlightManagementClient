@@ -139,6 +139,7 @@ export type Vessel = {
     name: string;
     _version: number;
     parts: VesselPart[];
+    permissions: Record<string, string>
 }
 
 export type VesselPart = {

@@ -103,14 +103,14 @@
     const userEmail = ref()
     const userPermission = ref()
 
-    async function getPermittedUserNames() {
-        try {
-          const res = await axios.post(`${useRssApiBaseUri()}/user/get_names`, permittedUserIds.value, { headers: authHeaders.value })
-          console.log(res)
-        } catch (e) {
-          console.log(e)
-        }
-    }
+    // async function getPermittedUserNames() {
+    //     try {
+    //       const res = await axios.post(`${useRssApiBaseUri()}/user/get_names`, permittedUserIds.value, { headers: authHeaders.value })
+    //       console.log(res)
+    //     } catch (e) {
+    //       console.log(e)
+    //     }
+    // }
 
     
 

@@ -66,7 +66,7 @@ const vessel = useObservableShallow(getVessel(id))
 const selected = ref({})
 
 function copyAuthToken() {
-    navigator.clipboard.writeText(token.value);
+    navigator.clipboard.writeText(token.value!);
     alert("Successfully copied token!")
 }
 
