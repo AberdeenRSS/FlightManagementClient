@@ -65,7 +65,7 @@ async function addVessel() {
         alert("No name given")
     }
     try {
-        const res = await axios.post(`${useRssApiBaseUri()}${url.value}`, {}, { headers: authHeaders.value })
+        await axios.post(`${useRssApiBaseUri()}${url.value}`, {}, { headers: authHeaders.value })
     } catch(e) {
         alert("Error creating vessel"+e)
     }

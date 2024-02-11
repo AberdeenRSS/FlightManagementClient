@@ -10,7 +10,7 @@ const loginState = ref<string>('default')
 const { currentUser, logout } = useUser()
 
 function login(){
-    router.push('login')
+    router.push('/login')
 }
 
 function onLogout(){
@@ -18,7 +18,7 @@ function onLogout(){
 }
 
 function register(){
-    router.push('register')
+    router.push('/register')
 }
 
 </script>

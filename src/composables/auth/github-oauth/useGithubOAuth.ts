@@ -1,7 +1,5 @@
 import { ref } from "vue";
 import { v4 } from "uuid";
-import { useRoute } from "vue-router";
-import axios from "axios";
 import { fetchRssApi } from "../../api/rssFlightServerApi";
 
 export type LoginStates = 'requestSilent' | 'default' | 'failed' | 'requestLogin' | 'requestLogout'
@@ -11,7 +9,7 @@ type Account = {
 }
 
 const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID;
-const clientSecret = import.meta.env.VITE_GITHUB_CLIENT_SECRET;
+// const clientSecret = import.meta.env.VITE_GITHUB_CLIENT_SECRET;
 
 
 const loginState = ref<LoginStates>('default');
@@ -37,7 +35,7 @@ export function useAuthFlow() {
 
 export async function loginSilent() {
 
-    if(!window.location.href.includes('?'))
+    if (!window.location.href.includes('?'))
         return
 
     const paramString = window.location.href.split('?')[1];
@@ -57,13 +55,13 @@ export async function loginSilent() {
         return
     }
 
-    const api = fetchRssApi('/auth/get_token', {method: 'POST'}, {})
+    const api = fetchRssApi('/auth/get_token', { method: 'POST' }, {})
 
-    const authRequest = await api.post({code, 'redirect_uri': window.location.href.split('?')[0]})
+    const authRequest = await api.post({ code, 'redirect_uri': window.location.href.split('?')[0] })
 
-    if((authRequest.statusCode.value as number) >= 300 && (authRequest.statusCode.value as number) < 200)
+    if ((authRequest.statusCode.value as number) >= 300 && (authRequest.statusCode.value as number) < 200)
         loginState.value = 'failed'
-        return
+    return
 
 
 }
@@ -101,11 +99,3 @@ export async function logout() {
 
 }
 
-function refreshAccountData() {
-    // accounts.value = msalInstance.value.getAllAccounts()
-
-    // if(accounts.value.length == 1)
-    //     msalInstance.value.setActiveAccount(accounts.value[0])
-
-    // activeAccount.value = msalInstance.value.getActiveAccount()
-}

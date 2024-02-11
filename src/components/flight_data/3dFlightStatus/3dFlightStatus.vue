@@ -62,8 +62,8 @@ const selectedPart$ = getPart(vessel$, selectedPartId)
 
 const series$ = fromImmediate(widgetData).pipe(
     map(d => ({
-        orientationX: d.selectedSeriesMulti['orientation-w'],
-        orientationW: d.selectedSeriesMulti['orientation-x'],
+        orientationW: d.selectedSeriesMulti['orientation-w'],
+        orientationX: d.selectedSeriesMulti['orientation-x'],
         orientationY: d.selectedSeriesMulti['orientation-y'], 
         orientationZ: d.selectedSeriesMulti['orientation-z'],
     }))
@@ -92,7 +92,19 @@ const values$ = combineLatest([measurement$, series$]).pipe(
 
 const quat$ = values$.pipe(
     // Swap coordinates as three.js has a different coordinate system than we are using
-    map(v => v.orientationW && v.orientationX && v.orientationY && v.orientationZ ? new THREE.Quaternion(v.orientationX, -v.orientationZ, v.orientationY, v.orientationW) : undefined)
+    // Coordinate system used by us:
+    //
+    //     z
+    //     |
+    //     |
+    //     | 
+    //     |_________x
+    //    /
+    //   /
+    //  /
+    // y
+    //
+    map(v => v.orientationW && v.orientationX && v.orientationY && v.orientationZ ? new THREE.Quaternion(v.orientationX, v.orientationZ, v.orientationY, v.orientationW) : undefined)
 )
 
 const quat = useObservableShallow(quat$)

@@ -14,7 +14,7 @@
                         <div><v-icon :icon="relevantConfiguration?.iconId ?? 'mdi-checkbox-blank'"></v-icon></div>
                     </div>
 
-                    <div class="flex-grow-1" v-if="widgetData.selectedView === 'Graph'">
+                    <div class="flex-grow-from-small" v-if="widgetData.selectedView === 'Graph'">
                         <SimpleFlightDataChart></SimpleFlightDataChart>
                     </div>
 
@@ -43,6 +43,10 @@
 
 <style lang="scss">
 
+.flex-grow-from-small {
+    height: 100px;
+    flex-grow: 1;
+}
 
 
 .card-content {

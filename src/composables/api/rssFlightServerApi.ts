@@ -1,13 +1,11 @@
 // fetch.js
-import { createFetch, until, type BeforeFetchContext, type AfterFetchContext } from '@vueuse/core'
+import { createFetch, until, type BeforeFetchContext } from '@vueuse/core'
 import { Socket, io } from "socket.io-client"
 import { shallowRef, triggerRef, type Ref } from 'vue'
-import { useMsal, useUserData } from '../msal/useMsal'
 import { useUser } from '../auth/useUser';
 
 
 const baseUri = import.meta.env.VITE_RSS_FLIGHT_SERVER_URL;
-const serverScope = import.meta.env.VITE_RSS_FLIGHT_SERVER_SCOPE;
 
 export function useRssApiBaseUri(){
     return baseUri
