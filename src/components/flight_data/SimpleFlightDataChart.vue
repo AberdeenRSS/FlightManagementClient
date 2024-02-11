@@ -342,6 +342,8 @@ watch([data, timeRangeDebounced, resolution, live, chart$], ([flightData, range,
     if (!flightData || !range || !chart)
         return
 
+    chart.resize()
+
     loadChartData(chart, flightData, range, resolution, isLive)
 
 
