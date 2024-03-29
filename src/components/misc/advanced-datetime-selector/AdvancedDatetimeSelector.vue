@@ -29,6 +29,7 @@
                 <div :class="'selector-bar' + (displayCurrentPreview ? ' selector-hover' : '')">
                     <div class="drag-box" @mousedown="onDragCurStart($event)" @touchstart="onDragCurStart($event)"></div>
                 </div>
+            
                 <div class="time-tooltip" v-if="displayCurrentPreview > 0">
                     {{ currentDateFormatted }}
                 </div>
@@ -245,7 +246,8 @@ $playbar-color: lightgray;
             z-index: 502;
 
             background-color: $range-select-color;
-            height: 40%;
+            height:15px;
+            //height: 40%;
             // width: 2rem;
             aspect-ratio: 1;
             padding-top: 100%;
