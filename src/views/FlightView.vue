@@ -159,6 +159,7 @@ import { fetchHistoricVessel } from '@/stores/vessels';
 import { filter } from 'rxjs';
 
 import { useFlightDataStore } from '@/stores/flight_data';
+import {asUtcString} from '@/helper/time'
 
 const route = useRoute()
 const vessel_id = route.params.vessel_id as string
@@ -206,8 +207,8 @@ const flight$ = getFlight(vessel_id, id)
 const flight = useObservableShallow(flight$)
 
 
-const startTime = computed(() => flight.value ? new Date(Date.parse(flight.value.start)) : undefined)
-const endTime = computed(() => (flight.value && flight.value.end) ? new Date(Date.parse(flight.value.end)) : undefined)
+const startTime = computed(() => flight.value ? new Date(Date.parse(asUtcString(flight.value.start))) : undefined)
+const endTime = computed(() => (flight.value && flight.value.end) ? new Date(Date.parse(asUtcString(flight.value.end))) : undefined)
 
 const rangeMinDate = ref()
 const rangeMaxDate = ref()
