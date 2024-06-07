@@ -15,6 +15,7 @@ jobs:
                 username: ${{ secrets.SERVER_USER }}
                 key: ${{ secrets.SSH_PRIVATE_KEY }}
                 port: 22
+                # The commands to run on the server
                 script: |
                     cd ~/repos/AberdeenRSS/FlightManagementClient
                     git checkout main
