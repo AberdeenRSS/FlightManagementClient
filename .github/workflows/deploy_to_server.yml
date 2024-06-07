@@ -1,0 +1,25 @@
+name: Deploy to Server
+
+on:
+    push:
+        branches: [main]
+    
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Deploy using SSH
+              uses: appleboy/ssh-action@master
+              with:
+                host: ${{ secrets.HOST }}
+                username: ${{ secrets.USERNAME }}
+                key: ${{ secrets.SSH_KEY }}
+                port: 22
+                script: |
+                    cd ~/repos/AberdeenRSS/FlightManagementClient
+                    git checkout main
+                    git pull
+                    sudo docker build . -t flight-management-client:latest
+                    cd /usr/share/uoarocketry-docker/docker
+                    sudo docker compose stop
+                    sudo docker compose up -d
