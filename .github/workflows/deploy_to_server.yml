@@ -8,6 +8,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
       - name: Deploy using SSH
         uses: appleboy/ssh-action@master
         with:
@@ -19,8 +22,7 @@ jobs:
             cd ~/repos/AberdeenRSS/FlightManagementClient
             git checkout main
             git pull
-            sudo -S /usr/bin/docker build . -t flight-management-client:latest < /dev/null
+            sudo -n /usr/bin/docker build . -t flight-management-client:latest
             cd /usr/share/uoarocketry-docker/docker
-            sudo -S /usr/bin/docker compose stop < /dev/null
-            sudo -S /usr/bin/docker compose up -d < /dev/null
-
+            sudo -n /usr/bin/docker-compose stop
+            sudo -n /usr/bin/docker-compose up -d
