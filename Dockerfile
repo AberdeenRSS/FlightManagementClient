@@ -13,7 +13,7 @@ RUN npm install
 COPY . .
 
 # build app for production with minification
-RUN npm run build -- --mode production
+RUN npm run build -- --mode production --max-old-space-size=2048
 
 RUN ls /app/dist
 
