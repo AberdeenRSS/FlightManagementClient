@@ -16,13 +16,11 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
           script: |
-            whoami
-            sudo -l
-            which docker
             cd ~/repos/AberdeenRSS/FlightManagementClient
             git checkout main
             git pull
-            sudo /usr/bin/docker build . -t flight-management-client:latest
+            sudo -S /usr/bin/docker build . -t flight-management-client:latest < /dev/null
             cd /usr/share/uoarocketry-docker/docker
-            sudo /usr/bin/docker compose stop
-            sudo /usr/bin/docker compose up -d
+            sudo -S /usr/bin/docker compose stop < /dev/null
+            sudo -S /usr/bin/docker compose up -d < /dev/null
+
