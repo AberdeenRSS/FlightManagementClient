@@ -8,12 +8,14 @@ COPY package*.json ./
 
 # install project dependencies
 RUN npm install
+# VM doesnt have enough RAM
+ENV NODE_OPTIONS=--max_old_space_size=2048
 
 # copy project files and folders to the current working directory (i.e. 'app' folder)
 COPY . .
 
 # build app for production with minification
-RUN npm run build -- --mode production --max-old-space-size=2048
+RUN npm run build -- --mode production
 
 RUN ls /app/dist
 
