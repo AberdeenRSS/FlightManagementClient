@@ -1,5 +1,6 @@
 import { fetchRssApi, useRssWebSocket } from '@/composables/api/rssFlightServerApi';
 import type { LoadingStates } from '@/helper/loadingStates';
+import { asUtcString } from '@/helper/time';
 import { ETERNITY, getMissingRangesRecursive, insertValue, type AggregationLevels, type TimeTreeData, type TimeTreeNode } from '@/helper/timeTree';
 import { until } from '@vueuse/core';
 import { ref, shallowRef, triggerRef, watch, type ShallowRef } from 'vue';
@@ -130,7 +131,7 @@ function integrateData(newData: (Measurements[]), store: FlightDataState, resolu
 
         const asTimeData: Measurements & TimeTreeData = {
             ...d,
-            getDateTime() { return typeof this._start_time === 'string' ? new Date(this._start_time) : this._start_time }
+            getDateTime() { return typeof this._start_time === 'string' ? new Date(asUtcString(this._start_time)) : this._start_time }
         }
         insertValue(store.measurements, asTimeData, resolution != 'smallest' ? resolution : undefined)
         

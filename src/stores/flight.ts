@@ -145,7 +145,7 @@ export type Flight = {
     start: string;
     end: string | undefined;
     available_commands: { [commandType: string]: CommandInfo }
-    measured_parts: { [part_id: string]: { name: string, type: 'string' | 'int' | 'float' }[] }
+    measured_parts: { [part_id: string]: { name: string, type: string }[] }
 }
 
 type FlightState = {

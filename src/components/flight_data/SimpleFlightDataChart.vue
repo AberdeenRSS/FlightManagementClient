@@ -32,6 +32,7 @@ import type { Flight } from '@/stores/flight';
 
 import { from } from '@vueuse/rxjs';
 import { debounceTime } from 'rxjs'
+import { toJsType } from '@/helper/datatype_helper';
 
 const rndCharMap = [
     22, 172, 124, 187, 131, 58, 193, 64, 232, 39, 114, 41, 209, 224, 27, 69, 202, 236, 112, 173, 47,
@@ -220,8 +221,9 @@ function makeDatasets(flight: Flight, partId: string) {
         const baseColor = `hsla(${seed}, 100%, 30%, 1)`;
         const backgroundColor = `hsla(${seed}, 100%, 30%, 0.1)`;
 
+        const jsType = toJsType(series.type)
 
-        if (series.type === 'float' || series.type === 'int') {
+        if (jsType === 'number' || jsType == 'boolean') {
             res.push({
                 data: [],
                 pointStyle: false,
