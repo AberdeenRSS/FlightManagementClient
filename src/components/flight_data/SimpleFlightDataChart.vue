@@ -223,7 +223,7 @@ function makeDatasets(flight: Flight, partId: string) {
 
         const jsType = toJsType(series.type)
 
-        if (jsType === 'number' || jsType == 'boolean') {
+        if (jsType === 'number' || jsType === 'boolean' || series.type === 'float' || series.type === 'int') {
             res.push({
                 data: [],
                 pointStyle: false,
