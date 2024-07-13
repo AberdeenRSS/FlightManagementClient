@@ -18,6 +18,7 @@ import { getFlightAndHistoricVessel } from '@/stores/combinedMethods';
 import { getPart } from '@/stores/vessels';
 import { useFlightDataStore } from '@/stores/flight_data';
 import { getClosest } from '@/helper/timeTree';
+import rocket_iconUrl from '@/assets/rocket_icon.svg?url'
 
 const mapContainer = ref<HTMLElement>()
 
@@ -93,7 +94,17 @@ watch(leafletMap, map => {
         attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(map);
 
-    rocketMapMarker.value =  L.marker([0, 0]).addTo(map)
+    const marker = L.marker([0, 0])
+
+    const icon = L.icon({
+        iconUrl: rocket_iconUrl,
+        iconSize:     [38, 95], // size of the icon
+        iconAnchor:   [0, 0], // point of the icon which will correspond to marker's location
+    });
+
+    marker.setIcon(icon)
+
+    rocketMapMarker.value = marker.addTo(map)
 
 }, { immediate: true })
 
