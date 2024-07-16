@@ -66,9 +66,19 @@ export function useRssOAuth() {
         }
         catch (err) {
 
+        
+            type ErrorResponse = {
+                response : {
+                    data : {
+                        detail: string
+                    },
+                }
+            }
+
             if (hasOwn(err as Record<string, string>, 'response')) {
-                const data = (err as Record<string, Record<string, string>>).response
-                registerError.value = data.data
+                const data = (err as ErrorResponse).response
+            
+                registerError.value = data.data?.detail
                 return false
             }
 
@@ -114,13 +124,24 @@ export function useRssOAuth() {
         }
         catch (err) {
 
+            type ErrorResponse = {
+                response : {
+                    data : {
+                        detail: string
+                    },
+                }
+            }
+
             if (hasOwn(err as Record<string, string>, 'response')) {
-                const data = (err as Record<string, Record<string, string>>).response
-                loginError.value = data.data
+                const data = (err as ErrorResponse).response
+            
+                loginError.value = data.data?.detail
                 return false
             }
 
             loginError.value = 'Unknown error while trying to register'
+
+            
         }
         finally {
             authStatus.value = { ...authStatus.value, loading: false }
