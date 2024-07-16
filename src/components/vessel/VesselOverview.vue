@@ -26,7 +26,8 @@
                     <td><b>{{ item.entity?.name }}</b></td>
                     <td>{{ item.entity?._version }}</td>
                     <td>{{ item.entity?.parts.length }}</td>
-                    <td><AddUserPermission :vesselId="item.entity!._id"></AddUserPermission> </td>
+                    <td v-if="!item.entity?.no_auth_permission"><AddUserPermission :vesselId="item.entity!._id"></AddUserPermission> </td>
+                    <td v-else></td>
                     <td><v-btn @click="router.push(`./vessel/details/${item.entity?._id}`)">Flights</v-btn></td>
                 </tr>
             </tbody>
