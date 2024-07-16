@@ -25,7 +25,7 @@
               
                 <v-select
                   v-model="userPermission"
-                  :items="['Owner', 'Commands', 'View', 'None']"
+                  :items="['Owner', 'Commands','Read','View', 'None']"
                   label="Permissions"
                   required
                 ></v-select>
@@ -93,6 +93,9 @@
         }
     })
 
+    // Key is display name, value is permission name in backend
+
+    
     const { vesselId } = toRefs(props)
 
     const vessel = useObservableShallow(getVessel(vesselId))
@@ -115,9 +118,21 @@
     
 
     const authHeaders = useAuthHeaders();
-    
+
+    type PermissionDisplayNameMapping = {
+        [key: string]: string
+    }
+
+    const permissionDisplayNameMapping:PermissionDisplayNameMapping = {
+        'Owner': 'owner',
+        'Commands': 'write',
+        'Read': 'read',
+        'View': 'view',
+        'None': 'none'
+    }
+
     const url = computed(() => {
-      return `/vessel/set_permission/${vesselId.value}/${userEmail.value}/${userPermission.value.toLowerCase()}`
+      return `/vessel/set_permission/${vesselId.value}/${userEmail.value}/${permissionDisplayNameMapping[userPermission.value]}`
     })
 
     async function addInputtedUser() {

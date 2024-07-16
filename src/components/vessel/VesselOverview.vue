@@ -26,7 +26,7 @@
                     <td><b>{{ item.entity?.name }}</b></td>
                     <td>{{ item.entity?._version }}</td>
                     <td>{{ item.entity?.parts.length }}</td>
-                    <td v-if="!item.entity?.no_auth_permission"><AddUserPermission :vesselId="item.entity!._id"></AddUserPermission> </td>
+                    <td v-if="currentUser && item.entity?.permissions[currentUser.uid] == 'owner'"><AddUserPermission :vesselId="item.entity!._id"></AddUserPermission> </td>
                     <td v-else></td>
                     <td><v-btn @click="router.push(`./vessel/details/${item.entity?._id}`)">Flights</v-btn></td>
                 </tr>
@@ -45,9 +45,10 @@ import { computed, ref } from 'vue';
 import {useAuthHeaders } from '../../composables/api/getHeaders'
 import axios from 'axios';
 import { useRssApiBaseUri } from '../../composables/api/rssFlightServerApi'
+import { useUser } from '@/composables/auth/useUser';
 
 const newVesselName = ref('')
-
+const { currentUser } = useUser()
 const authHeaders = useAuthHeaders();
 
 const url = computed(() => {
