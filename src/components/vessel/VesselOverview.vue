@@ -26,7 +26,12 @@
                     <td><b>{{ item.entity?.name }}</b></td>
                     <td>{{ item.entity?._version }}</td>
                     <td>{{ item.entity?.parts.length }}</td>
-                    <td v-if="currentUser && item.entity?.permissions[currentUser.uid] == 'owner'"><AddUserPermission :vesselId="item.entity!._id"></AddUserPermission> </td>
+                    <td v-if="currentUser && item.entity?.permissions[currentUser.uid] == 'owner'">
+                        <AddUserPermission :vesselId="item.entity!._id"></AddUserPermission> 
+                    </td>
+                    <td v-else-if="Object.keys(item.entity?.permissions ?? {}).length === 0">
+                        <ClaimVessel :vesselId="item.entity!._id"></ClaimVessel>
+                    </td>
                     <td v-else></td>
                     <td><v-btn @click="router.push(`./vessel/details/${item.entity?._id}`)">Flights</v-btn></td>
                 </tr>
@@ -38,7 +43,7 @@
 <script setup lang="ts">
 import { useObservableShallow } from '@/helper/reactivity';
 import { fetchVesselsIfNecessary, getVessels } from '@/stores/vessels';
-import AddUserPermission from '../permissions/AddUserPermission.vue';
+import AddUserPermission from './AddUserPermission.vue';
 
 import { useRouter } from 'vue-router';
 import { computed, ref } from 'vue';
@@ -46,6 +51,7 @@ import {useAuthHeaders } from '../../composables/api/getHeaders'
 import axios from 'axios';
 import { useRssApiBaseUri } from '../../composables/api/rssFlightServerApi'
 import { useUser } from '@/composables/auth/useUser';
+import ClaimVessel from './ClaimVessel.vue';
 
 const newVesselName = ref('')
 const { currentUser } = useUser()
