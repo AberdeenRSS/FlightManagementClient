@@ -21,7 +21,7 @@
 
                 <td>
                     <v-btn 
-                        v-if="item!.end"
+                        v-if="item!.end && item!.end <= new Date().toISOString()"
                         @click="router.push(`/flight/${item._vessel_id}/${item!._id}`)">
                         Details
                     </v-btn>
