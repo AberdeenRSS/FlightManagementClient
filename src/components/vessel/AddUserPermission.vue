@@ -31,7 +31,6 @@
           </v-btn>
         </v-card-actions>
         <v-alert v-if="permissionsError" :text="permissionsError" type="error"></v-alert>
-       
         <v-expansion-panels>
           <v-expansion-panel title="Existing Users" @click="fetchUserNames">
             <v-expansion-panel-text>
