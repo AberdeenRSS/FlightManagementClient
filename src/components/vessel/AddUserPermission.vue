@@ -29,10 +29,9 @@
           <v-btn color="blue-darken-1" variant="text" @click="addInputtedUser">
             Add
           </v-btn>
-
-
         </v-card-actions>
-
+        <v-alert v-if="permissionsError" :text="permissionsError" type="error"></v-alert>
+       
         <v-expansion-panels>
           <v-expansion-panel title="Existing Users">
             <v-expansion-panel-text>
@@ -40,19 +39,12 @@
                 <v-card-title>{{ item }}</v-card-title>
                 <v-card-text>{{ vessel!.permissions[item] }}</v-card-text>
               </v-card>
-
             </v-expansion-panel-text>
           </v-expansion-panel>
         </v-expansion-panels>
-
       </v-card>
-
-
-
     </v-dialog>
   </v-row>
-
-
 </template>
 
 <script lang="ts" setup>
@@ -61,7 +53,7 @@ import { ref, toRefs, computed, onMounted } from 'vue'
 import { getVessel } from '@/stores/vessels'
 import { useObservableShallow } from '@/helper/reactivity'
 import { useAuthHeaders } from '../../composables/api/getHeaders'
-import axios from 'axios'
+import axios, { AxiosError } from 'axios'
 import { useRssApiBaseUri } from '../../composables/api/rssFlightServerApi'
 
 const props = defineProps({
@@ -71,14 +63,11 @@ const props = defineProps({
   }
 })
 
-// Key is display name, value is permission name in backend
-
-
 const { vesselId } = toRefs(props)
 
 const vessel = useObservableShallow(getVessel(vesselId))
 
-console.log(vessel)
+const permissionsError = ref<string | undefined>()
 
 const dialog = ref(false)
 const userEmail = ref()
@@ -137,7 +126,9 @@ async function addInputtedUser() {
   try {
     await axios.post(`${useRssApiBaseUri()}${url.value}`, {}, { headers: authHeaders.value })
   } catch (e) {
-    console.log(e)
+    const error = e as AxiosError<unknown>
+    const responseData = (error.response?.data as { detail?: string })
+    permissionsError.value = responseData?.detail;
   }
 }
 // Get all users with permissions and display

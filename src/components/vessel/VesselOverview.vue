@@ -26,7 +26,7 @@
                     <td><b>{{ item.entity?.name }}</b></td>
                     <td>{{ item.entity?._version }}</td>
                     <td>{{ item.entity?.parts.length }}</td>
-                    <td v-if="currentUser && item.entity?.permissions[currentUser.uid] == 'owner'">
+                    <td v-if="currentUser && item.entity?.permissions[currentUser.uid] === 'owner'">
                         <AddUserPermission :vesselId="item.entity!._id"></AddUserPermission> 
                     </td>
                     <td v-else-if="Object.keys(item.entity?.permissions ?? {}).length === 0">
