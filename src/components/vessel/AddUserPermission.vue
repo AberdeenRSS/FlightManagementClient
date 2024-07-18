@@ -33,10 +33,10 @@
         <v-alert v-if="permissionsError" :text="permissionsError" type="error"></v-alert>
        
         <v-expansion-panels>
-          <v-expansion-panel title="Existing Users">
+          <v-expansion-panel title="Existing Users" @click="fetchUserNames">
             <v-expansion-panel-text>
               <v-card v-for="(item, key) of Object.keys(vessel!.permissions)" :key="key">
-                <v-card-title>{{ item }}</v-card-title>
+                <v-card-title>{{ userNames && userNames[item] || 'Loading...' }}</v-card-title>
                 <v-card-text>{{ vessel!.permissions[item] }}</v-card-text>
               </v-card>
             </v-expansion-panel-text>
@@ -49,7 +49,7 @@
 
 <script lang="ts" setup>
 
-import { ref, toRefs, computed, onMounted } from 'vue'
+import { ref, toRefs, computed } from 'vue'
 import { getVessel } from '@/stores/vessels'
 import { useObservableShallow } from '@/helper/reactivity'
 import { useAuthHeaders } from '../../composables/api/getHeaders'
@@ -72,6 +72,7 @@ const permissionsError = ref<string | undefined>()
 const dialog = ref(false)
 const userEmail = ref()
 const userPermission = ref()
+const userNames = ref()
 const authHeaders = useAuthHeaders();
 
 async function fetchUserNames() {
@@ -89,8 +90,9 @@ async function fetchUserNames() {
           'Content-Type': 'application/json'
         }
       });
-      console.log('API response:', response.data);
-      // Handle the response data as needed
+      
+      userNames.value = response.data;
+
     } catch (error) {
       console.error('Failed to fetch user names:', error);
     }
@@ -98,13 +100,6 @@ async function fetchUserNames() {
     console.error('Vessel permissions data is not available');
   }
 }
-
-onMounted(() => {
-  fetchUserNames(); // Fetch user names as soon as the component mounts
-});
-
-
-
 
 type PermissionDisplayNameMapping = {
   [key: string]: string
