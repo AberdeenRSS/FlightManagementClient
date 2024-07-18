@@ -19,7 +19,19 @@
                 <td>{{ new Date(Date.parse(asUtcString(item!.start))).toLocaleDateString() }} {{ new
                 Date(Date.parse(asUtcString(item!.start))).toLocaleTimeString() }}</td>
 
-                <td><v-btn @click="router.push(`/flight/${item._vessel_id}/${item!._id}`)">Details</v-btn></td>
+                <td>
+                    <v-btn 
+                        v-if="item!.end"
+                        @click="router.push(`/flight/${item._vessel_id}/${item!._id}`)">
+                        Details
+                    </v-btn>
+                    <v-btn 
+                        v-else
+                        color="primary"
+                        @click="router.push(`/flight/${item._vessel_id}/${item!._id}`)">
+                        Live
+                    </v-btn>
+                </td>
             </tr>
         </tbody>
     </v-table>
