@@ -199,7 +199,12 @@ const { subscribeRealtime: subscribeRealtimeFlightData } = useFlightDataStore()
 setVesselId(vessel_id)
 setFlightId(id)
 
-watch(live, l => setLive(l), { immediate: true })
+watch(live, l => {
+    setLive(l)
+    if (l) {
+        setResolution('second')
+    }
+},{ immediate: true })
 
 fetchFlightsForVesselIfNecessary(vessel_id)
 
