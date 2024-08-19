@@ -6,8 +6,11 @@
 
 // scrollbar
 
+@import 'primeicons/primeicons.css';
+
 $scrollbar-color: grey;
 $scrollbar-background: rgba(0, 0, 0, 0);
+
 
 /* Works on Firefox */
 * {
@@ -28,4 +31,13 @@ $scrollbar-background: rgba(0, 0, 0, 0);
     background-color: $scrollbar-color;
     border-radius: 20px;
     border: 3px solid $scrollbar-background;
+}
+
+* {
+    font-family: "Open Sans", sans-serif;
+}
+
+body {
+    padding: 0;
+    margin: 0;
 }

@@ -6,13 +6,12 @@ import checker from 'vite-plugin-checker';
 import basicSsl from '@vitejs/plugin-basic-ssl'
 
 // https://github.com/vuetifyjs/vuetify-loader/tree/next/packages/vite-plugin
-import vuetify from 'vite-plugin-vuetify'
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
 		vue(),
-		vuetify({ autoImport: true }),
+		
     checker({
       vueTsc: {
         tsconfigPath: './tsconfig.app.json'

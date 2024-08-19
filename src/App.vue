@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import { RouterView, useRouter } from 'vue-router'
+import { RouterView } from 'vue-router'
 import AuthenticationIndicator from './components/user/AuthenticationIndicator.vue';
 import { useUser } from './composables/auth/useUser';
 import { useRssOAuth } from './composables/auth/rss-oauth/useRssOAuth';
+import Menubar from 'primevue/menubar';
+import Button from 'primevue/button';
+import router from './router';
+import DynamicDialog from 'primevue/dynamicdialog';
 
-const router = useRouter()
+//const router = useRouter()
 
 // /* eslint-disable */ 
 // // @ts-ignore
@@ -39,34 +43,37 @@ const router = useRouter()
 const { trySilentLogin } = useUser()
 const _ = useRssOAuth()
 
+function navigateHome() {
+  router.push('/');
+}
+
 trySilentLogin()
 
 </script>
 
 <template>
-  <v-layout>
-    <v-app-bar density="compact">
-      <template v-slot:prepend>
-        <v-btn @click="router.push('/')">Home</v-btn>
-        <v-btn @click="router.push('/about')">About</v-btn>
+  <div class="layout">
+    <Menubar>
+      <template #start>
+        <Button label="Home" class="p-button-text" @click="navigateHome" />
       </template>
-
-
-
-
-      <template v-slot:append>
-        <AuthenticationIndicator></AuthenticationIndicator>
+      
+      <template #end>
+        <div>
+          
+          <AuthenticationIndicator />
+        </div>
       </template>
-    </v-app-bar>
+    </Menubar>
 
-    <v-main>
-      <div style="height: 100%;">
-
-        <RouterView />
-      </div>
-    </v-main>
-  </v-layout>
+    <div class="content">
+      <DynamicDialog />
+      <RouterView />
+    </div>
+  </div>
 </template>
+
+
 
 <style lang="scss">
 @import './assets/main.scss';
@@ -77,8 +84,13 @@ trySilentLogin()
   height: 100%;
 }
 
+
 html {
   width: 100vw;
   overflow-y: hidden !important;
+}
+
+.content {
+  padding:24px
 }
 </style>

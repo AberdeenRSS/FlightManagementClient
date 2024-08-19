@@ -1,40 +1,87 @@
+<template>
+    <div class="authentication-indicator">
+        <Button type="button" icon="pi pi-ellipsis-v" @click="toggle" aria-haspopup="true"
+            aria-controls="overlay_menu"></Button>
+        <Menu ref="menu" id="overlay_menu" :model="items" :popup="true" />
+    </div>
+</template>
+
 <script setup lang="ts">
 import { useUser } from '@/composables/auth/useUser';
 import { useRouter } from 'vue-router';
 import { ref } from 'vue';
+import Button from 'primevue/button';
+import Menu from 'primevue/menu';
+import { computed } from 'vue';
 
-const router = useRouter()
+
+const menu = ref();
+const router = useRouter();
+const { currentUser, logout } = useUser();
+
+function toggle(event:Event) {
+    menu.value.toggle(event);
+}
+
 
 const loginState = ref<string>('default')
 
-const { currentUser, logout } = useUser()
+const items = computed(() => {
+    if (loginState.value !== 'default' && loginState.value !== 'failed') {
+        return [{
+            label: 'Loading...',
+            icon: 'pi pi-spin pi-spinner'
+        }];
+    } else if (currentUser.value) {
+        return [
+            {
+                label: currentUser.value.name,
+                items: [{
+                    label: 'Logout',
+                
+                    command: () => {
+                        onLogout();
+                        menu.value.hide();
+                    }
+                }]
+            }
+        ];
+    } else {
+        return [
+            {
+                label: 'Login',
+                icon: 'pi pi-sign-in',
+                command: () => {
+                    login();
+                    menu.value.hide();
+                }
+            },
+            {
+                label: 'Register',
+                icon: 'pi pi-user-plus',
+                command: () => {
+                    register();
+                    menu.value.hide();
+                }
+            }
+        ];
+    }
+});
 
-function login(){
+
+
+function login() {
     router.push('/login')
+    menu.value = false
 }
 
-function onLogout(){
+function onLogout() {
     logout()
+    menu.value = false
 }
 
-function register(){
+function register() {
     router.push('/register')
+    menu.value = false
 }
-
 </script>
-
-<template>
-    <v-progress-circular v-if="loginState !== 'default' && loginState !== 'failed'" indeterminate>
-    </v-progress-circular>
-    <div class="d-flex align-center" v-else>
-
-        <template v-if="currentUser">
-            <div>{{ currentUser.name }}</div>
-            <v-btn @click="onLogout">Logout</v-btn>
-        </template>
-        <template v-else>
-            <v-btn @click="login">Login</v-btn>
-            <v-btn @click="register">Register</v-btn>
-        </template>
-    </div>
-</template>

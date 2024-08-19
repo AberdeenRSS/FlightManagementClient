@@ -4,7 +4,7 @@ import VesselOverview from '@/components/vessel/VesselOverview.vue'
 </script>
 
 <template>
-  <main>
+  <main class="main">
 
     <!-- <h1 class="container text-center">Rocket Control Board</h1> -->
 
@@ -12,3 +12,4 @@ import VesselOverview from '@/components/vessel/VesselOverview.vue'
     <VesselOverview></VesselOverview>
   </main>
 </template>
+
