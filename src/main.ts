@@ -10,6 +10,8 @@ import router from './router'
 import { useChartJs } from './plugins/chart'
 import DiaglogService from 'primevue/dialogservice';
 import { definePreset } from '@primevue/themes';
+import '@/assets/main.scss';
+
 
 loadFonts()
 

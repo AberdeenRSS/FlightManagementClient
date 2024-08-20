@@ -1,8 +1,13 @@
 <template>
     <div class="authentication-indicator">
-        <Button type="button" icon="pi pi-ellipsis-v" @click="toggle" aria-haspopup="true"
+        <Button 
+            type="button" 
+            outlined
+            icon="pi pi-ellipsis-v" 
+            @click="toggle" 
+            aria-haspopup="true"
             aria-controls="overlay_menu"></Button>
-        <Menu ref="menu" id="overlay_menu" :model="items" :popup="true" />
+        <Menu ref="menu" id="overlay_menu" :model="items" :popup="true"/>
     </div>
 </template>
 

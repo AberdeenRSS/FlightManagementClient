@@ -1,6 +1,6 @@
 <template>
     <div>
-      <Button icon="pi pi-user-edit" @click="openDialog" />
+      <Button severity="secondary" outlined icon="pi pi-user-edit" @click="openDialog" />
   
       <Dialog v-model:visible="visible" :style="{ width: '450px' }" header="Edit User Permissions" :modal="true">
         <div class="p-fluid">

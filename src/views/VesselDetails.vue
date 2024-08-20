@@ -18,13 +18,30 @@
             </v-card-actions>
         </v-card>
 
+        <Tabs value="0">
+            <TabList>
+                <Tab value="0">Flights</Tab>
+                <Tab value="1">Parts</Tab>
+            </TabList>
+            <TabPanels>
+                <TabPanel value="0">
+                    <div style="flex-basis: 200px; flex-grow: 0.4;">
+                        <FlightList :vessel-id="id"></FlightList>
+                    </div>
+                </TabPanel>
+                <TabPanel value="1">
+                    <div style="flex-basis: 200px; flex-grow: 0.4;">
+                        <VesselChart v-model="selected" :vessel-id="id"></VesselChart>
+                   
+                    </div>
+                </TabPanel>
+            </TabPanels>
+        </Tabs>
         <div class="d-flex" style="min-height: 1px;">
-            <div style="flex-basis: 200px; flex-grow: 0.4;">
-                <VesselChart v-model="selected" :vessel-id="id"></VesselChart>
-            </div>
+            
 
             <div style="max-height: 100%; overflow-y: scroll; flex-grow: 1;">
-                <FlightList :vessel-id="id"></FlightList>
+                
             </div>
         </div>
 
@@ -48,6 +65,12 @@ import { useUser } from '@/composables/auth/useUser';
 import axios from 'axios';
 import { useRssApiBaseUri } from '@/composables/api/rssFlightServerApi';
 import { until } from '@vueuse/core';
+import Tabs from 'primevue/tabs';
+import TabList from 'primevue/tablist';
+import Tab from 'primevue/tab';
+import TabPanel from 'primevue/tabpanel';
+import TabPanels from 'primevue/tabpanels';
+
 
 const route = useRoute()
 const id = route.params.id as string

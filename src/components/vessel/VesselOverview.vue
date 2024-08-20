@@ -4,9 +4,12 @@
 
             <InputGroup class="aligned-input">
 
-                <InputText id="newVesselName" v-model="newVesselName" placeholder="New Vessel Name" />
+                <InputText 
+                    id="newVesselName" 
+                    v-model="newVesselName" 
+                    placeholder="New Vessel Name" />
 
-                <Button label="Add Vessel" @click="addVessel" />
+                <Button label="Add Vessel" outlined @click="addVessel" />
             </InputGroup>
 
         </Panel>
@@ -14,7 +17,7 @@
         <Panel style="margin-bottom:24px; padding:0">
             <template #header>
                 <span class="p-panel-title">Vessels
-                    <Badge :value="vessels ? Object.keys(vessels).length : 0" severity="info" class="ml-2" />
+                    {{ vessels ? `(${Object.keys(vessels).length})` : '' }}
                 </span>
             </template>
 
@@ -61,7 +64,6 @@ import axios from 'axios';
 import { useRssApiBaseUri } from '../../composables/api/rssFlightServerApi'
 import InputText from 'primevue/inputtext';
 import Button from 'primevue/button';
-import Badge from 'primevue/badge';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import InputGroup from 'primevue/inputgroup';
