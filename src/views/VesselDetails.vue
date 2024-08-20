@@ -10,40 +10,37 @@
         <v-card>
             <v-card-title v-if="token">Auth Code</v-card-title>
             <v-alert v-if="tokenError" :text="tokenError" type="error"></v-alert>
-            
+
             <v-card-text v-if="token">{{ token }}</v-card-text>
             <v-card-actions>
                 <v-btn @click="createAuthCode" :loading="tokenLoading">Create Auth Code</v-btn>
                 <v-btn @click="copyAuthToken" v-if="token">Copy</v-btn>
             </v-card-actions>
         </v-card>
+        <Panel>
+            <template #header>
+                <span class="p-panel-title">Vessel Details</span>
+            </template>
+            <Tabs value="0" class="m-0">
+                <TabList>
+                    <Tab value="0">Flights</Tab>
+                    <Tab value="1">Parts</Tab>
+                </TabList>
+                <TabPanels>
+                    <TabPanel value="0">
+                        <div style="flex-basis: 200px; flex-grow: 0.4;">
+                            <FlightList :vessel-id="id"></FlightList>
+                        </div>
+                    </TabPanel>
+                    <TabPanel value="1">
+                        <div style="flex-basis: 200px; flex-grow: 0.4;">
+                            <VesselComponentsList v-model="selected" :vessel-id="id"></VesselComponentsList>
 
-        <Tabs value="0">
-            <TabList>
-                <Tab value="0">Flights</Tab>
-                <Tab value="1">Parts</Tab>
-            </TabList>
-            <TabPanels>
-                <TabPanel value="0">
-                    <div style="flex-basis: 200px; flex-grow: 0.4;">
-                        <FlightList :vessel-id="id"></FlightList>
-                    </div>
-                </TabPanel>
-                <TabPanel value="1">
-                    <div style="flex-basis: 200px; flex-grow: 0.4;">
-                        <VesselChart v-model="selected" :vessel-id="id"></VesselChart>
-                   
-                    </div>
-                </TabPanel>
-            </TabPanels>
-        </Tabs>
-        <div class="d-flex" style="min-height: 1px;">
-            
-
-            <div style="max-height: 100%; overflow-y: scroll; flex-grow: 1;">
-                
-            </div>
-        </div>
+                        </div>
+                    </TabPanel>
+                </TabPanels>
+            </Tabs>
+        </Panel>
 
 
     </div>
@@ -53,7 +50,6 @@
 </template>
 
 <script setup lang="ts">
-import VesselChart from '@/components/vessel/VesselChart.vue';
 import FlightList from '@/components/flights/FlightList.vue';
 import { useRoute } from 'vue-router';
 import { ref } from 'vue';
@@ -70,6 +66,8 @@ import TabList from 'primevue/tablist';
 import Tab from 'primevue/tab';
 import TabPanel from 'primevue/tabpanel';
 import TabPanels from 'primevue/tabpanels';
+import VesselComponentsList from '@/components/vessel/VesselComponentsList.vue';
+import Panel from 'primevue/panel';
 
 
 const route = useRoute()
@@ -101,10 +99,10 @@ async function createAuthCode() {
     const loadedVessel = await until(vessel).toBeTruthy()
     const user = await until(currentUser).toBeTruthy()
 
-    const validUntil = new Date(Date.now() + 1000*60*60*24*60)
+    const validUntil = new Date(Date.now() + 1000 * 60 * 60 * 24 * 60)
 
     try {
-        const res = await axios.post(`${useRssApiBaseUri()}/vessel/create_auth_code/${loadedVessel._id}/${validUntil.toISOString()}`, undefined, {headers: {'Authorization': user.jwt_token}})
+        const res = await axios.post(`${useRssApiBaseUri()}/vessel/create_auth_code/${loadedVessel._id}/${validUntil.toISOString()}`, undefined, { headers: { 'Authorization': user.jwt_token } })
         token.value = res.data['_id']
     }
     catch (e) {
