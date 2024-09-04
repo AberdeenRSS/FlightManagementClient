@@ -10,7 +10,6 @@ import 'vuetify/styles'
 import { useChartJs } from './plugins/chart'
 
 loadFonts()
-
 useChartJs()
 
 const app = createApp(App)
