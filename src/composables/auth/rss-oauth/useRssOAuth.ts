@@ -164,7 +164,7 @@ export function useRssOAuth() {
 
         try {
 
-            const res = await axios.post(`${useRssApiBaseUri()}/auth/authorization_code_flow`, {'refresh_token':currentUser.value.refresh_token})
+            const res = await axios.post(`${useRssApiBaseUri()}/auth/authorization_code_flow`, {'token':currentUser.value.refresh_token})
 
             if (res.status >= 200 && res.status < 300) {
 
