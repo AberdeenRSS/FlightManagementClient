@@ -1,0 +1,135 @@
+<template>
+
+  <v-row justify="center">
+    <v-dialog v-model="dialog" persistent width="1024">
+      <template v-slot:activator="{ props }">
+        <v-btn color="primary" v-bind="props">Permissions</v-btn>
+      </template>
+      <v-card>
+        <v-card-title>
+          <span class="text-h5">{{ vessel!.name }}</span>
+        </v-card-title>
+        <v-card-text>
+          <v-container>
+            <p>Give User Permissions</p>
+            <v-text-field v-model="userEmail" label="User Email" required></v-text-field>
+
+            <v-select v-model="userPermission" :items="['Owner', 'Commands', 'Read', 'View', 'None']" label="Permissions"
+              required></v-select>
+
+
+          </v-container>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="blue-darken-1" variant="text" @click="dialog = false">
+            Cancel
+          </v-btn>
+
+          <v-btn color="blue-darken-1" variant="text" @click="addInputtedUser">
+            Add
+          </v-btn>
+        </v-card-actions>
+        <v-alert v-if="permissionsError" :text="permissionsError" type="error"></v-alert>
+        <v-expansion-panels>
+          <v-expansion-panel title="Existing Users" @click="fetchUserNames">
+            <v-expansion-panel-text>
+              <v-card v-for="(item, key) of Object.keys(vessel!.permissions)" :key="key">
+                <v-card-title>{{ userNames && userNames[item] || 'Loading...' }}</v-card-title>
+                <v-card-text>{{ vessel!.permissions[item] }}</v-card-text>
+              </v-card>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+        </v-expansion-panels>
+      </v-card>
+    </v-dialog>
+  </v-row>
+</template>
+
+<script lang="ts" setup>
+
+import { ref, toRefs, computed } from 'vue'
+import { getVessel } from '@/stores/vessels'
+import { useObservableShallow } from '@/helper/reactivity'
+import { useAuthHeaders } from '../../composables/api/getHeaders'
+import axios, { AxiosError } from 'axios'
+import { useRssApiBaseUri } from '../../composables/api/rssFlightServerApi'
+
+const props = defineProps({
+  vesselId: {
+    type: String,
+    required: true
+  }
+})
+
+const { vesselId } = toRefs(props)
+
+const vessel = useObservableShallow(getVessel(vesselId))
+
+const permissionsError = ref<string | undefined>()
+
+const dialog = ref(false)
+const userEmail = ref()
+const userPermission = ref()
+const userNames = ref()
+const authHeaders = useAuthHeaders();
+
+async function fetchUserNames() {
+  if (vessel.value && vessel.value.permissions) {
+    const permissionKeys = Object.keys(vessel.value.permissions);
+
+    try {
+      // Sending the UUIDs in the request body as a JSON array
+      const url = `${useRssApiBaseUri()}/user/get_names`;
+      const response = await axios.post(url, 
+        permissionKeys  // The list of UUIDs expected by the API
+      , {
+        headers: {
+          ...authHeaders.value,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      userNames.value = response.data;
+
+    } catch (error) {
+      console.error('Failed to fetch user names:', error);
+    }
+  } else {
+    console.error('Vessel permissions data is not available');
+  }
+}
+
+type PermissionDisplayNameMapping = {
+  [key: string]: string
+}
+
+const permissionDisplayNameMapping: PermissionDisplayNameMapping = {
+  'Owner': 'owner',
+  'Commands': 'write',
+  'Read': 'read',
+  'View': 'view',
+  'None': 'none'
+}
+
+const url = computed(() => {
+  return `/vessel/set_permission/${vesselId.value}/${userEmail.value}/${permissionDisplayNameMapping[userPermission.value]}`
+})
+
+async function addInputtedUser() {
+  try {
+    await axios.post(`${useRssApiBaseUri()}${url.value}`, {}, { headers: authHeaders.value })
+  } catch (e) {
+    const error = e as AxiosError<unknown>
+    const responseData = (error.response?.data as { detail?: string })
+    permissionsError.value = responseData?.detail;
+  }
+}
+// Get all users with permissions and display
+
+// Remove user button
+
+// Update user button
+
+//            <v-alert v-if="error && error!=''" :text="error" type="error"></v-alert>
+</script>
