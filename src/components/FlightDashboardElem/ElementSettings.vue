@@ -7,6 +7,9 @@
                 <v-tab v-for="item in tabs" :key="item" :value="item">
                     {{ item }}
                 </v-tab>
+                <v-btn variant="outlined" @click="onDone">Done</v-btn>
+                <v-btn color="error" @click="onDelete">Delete</v-btn>
+
             </v-tabs>
         </span>
 
@@ -47,9 +50,7 @@
             <!-- <div v-if="selectedTab === 'General'" class="settings-item">
              <DashboardResizer></DashboardResizer>
             </div> -->
-            <v-btn variant="outlined" @click="onDone">Done</v-btn>
-            <v-btn color="error" @click="onDelete">Delete</v-btn>
-
+            
         </div>
 
     </div>
