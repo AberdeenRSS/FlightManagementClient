@@ -1,6 +1,6 @@
 <template>
    
-    <v-row justify="center">
+  <v-row justify="center">
     <v-dialog
       v-model="dialog"
       persistent
@@ -54,7 +54,7 @@
          
         </v-card-actions>
 
-        <v-expansion-panels>
+        <v-expansion-panels v-if="hasPermissions">
             <v-expansion-panel
                 title="Existing Users">
                 <v-expansion-panel-text>
@@ -79,7 +79,7 @@
 
 <script lang="ts" setup>
 
-    import { ref,toRefs,computed } from 'vue'
+    import { ref, toRefs, computed } from 'vue'
     import { getVessel } from '@/stores/vessels'
     import { useObservableShallow } from '@/helper/reactivity'
     import { useAuthHeaders } from '../../composables/api/getHeaders'
@@ -103,21 +103,14 @@
     const userEmail = ref()
     const userPermission = ref()
 
-    // async function getPermittedUserNames() {
-    //     try {
-    //       const res = await axios.post(`${useRssApiBaseUri()}/user/get_names`, permittedUserIds.value, { headers: authHeaders.value })
-    //       console.log(res)
-    //     } catch (e) {
-    //       console.log(e)
-    //     }
-    // }
-
-    
-
     const authHeaders = useAuthHeaders();
     
     const url = computed(() => {
       return `/vessel/set_permission/${vesselId.value}/${userEmail.value}/${userPermission.value.toLowerCase()}`
+    })
+
+    const hasPermissions = computed(() => {
+      return vessel.value && vessel.value.permissions && Object.keys(vessel.value.permissions).length > 0
     })
 
     async function addInputtedUser() {
@@ -127,12 +120,5 @@
         console.log(e)
       }
     }
-    // Get all users with permissions and display
 
-    // Remove user button
-
-    // Update user button
-
-//            <v-alert v-if="error && error!=''" :text="error" type="error"></v-alert>
 </script>
-

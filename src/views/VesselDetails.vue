@@ -1,50 +1,60 @@
 <template>
-    <div v-if="!!vessel" style="height: 100%; flex-direction: column;" class="d-flex flex-column">
-      <div>
+    <v-container fluid>
+      <div v-if="!!vessel" style="height: 100%;" class="d-flex flex-column">
         <div class="ma-2 font-weight-light text-h3">
           {{ vessel.name }}
         </div>
-      </div>
-      <div>
-        <h3>Actions</h3>
-        <div class="d-flex flex-row">
-          <div class="d-flex flex-column" style="max-width:400px">
-            <v-alert v-if="tokenError" :text="tokenError" type="error"></v-alert>
-            <div v-if="token">
-              <p style="overflow-wrap: break-word;padding:1rem;">{{ token }}</p>
+        
+        <!-- Actions Panel -->
+        <v-card class="mb-4">
+          <v-card-title>Actions</v-card-title>
+          <v-card-text>
+            <div class="d-flex flex-row align-center">
+              <div class="d-flex flex-column flex-grow-1" style="max-width: 400px">
+                <v-alert v-if="tokenError" :text="tokenError" type="error"></v-alert>
+                <div v-if="token" class="d-flex align-center">
+                  <p class="text-truncate mr-2">{{ token }}</p>
+                  <v-btn icon @click="copyAuthToken" v-if="token">
+                    <v-icon>mdi-content-copy</v-icon>
+                  </v-btn>
+                </div>
+                <div class="mt-2">
+                  <v-btn @click="createAuthCode" :loading="tokenLoading" v-if="!token">Create Auth Code</v-btn>
+                  <v-btn @click="clearAuthToken" v-if="token" class="ml-2">Clear</v-btn>
+                </div>
+              </div>
+              <div class="ml-4">
+                <AddUserPermission :vesselId="vessel._id"></AddUserPermission>
+              </div>
             </div>
-            <div class="mx-auto">
-              <v-btn @click="createAuthCode" :loading="tokenLoading" v-if="!token">Create Auth Code</v-btn>
-              <v-btn @click="copyAuthToken" v-if="token">Copy Code</v-btn>
-              <v-btn @click="clearAuthToken" v-if="token">Clear</v-btn>
+          </v-card-text>
+        </v-card>
+  
+        <!-- Tabs -->
+        <v-card class="flex-grow-1">
+          <v-tabs v-model="tab" bg-color="primary">
+            <v-tab value="flights">Flights</v-tab>
+            <v-tab value="components">Parts</v-tab>
+          </v-tabs>
+          <v-card-text class="tab-content">
+            <div v-if="tab === 'flights'">
+              <FlightList :vessel-id="id"></FlightList>
             </div>
-          </div>
-        </div>
+            <div v-else-if="tab === 'components'">
+              <VesselComponentsList v-model="selected" :vessel-id="id"></VesselComponentsList>
+            </div>
+          </v-card-text>
+        </v-card>
       </div>
-      <v-card class="p-5">
-        <v-tabs v-model="tab" bg-color="primary">
-          <v-tab value="flights">Flights</v-tab>
-          <v-tab value="components">Parts</v-tab>
-        </v-tabs>
-        <v-card-text class="tab-content">
-          <div v-if="tab === 'flights'">
-            <FlightList :vessel-id="id"></FlightList>
-          </div>
-          <div v-else-if="tab === 'components'">
-            <VesselComponentsList v-model="selected" :vessel-id="id"></VesselComponentsList>
-          </div>
-        </v-card-text>
-      </v-card>
-    </div>
-    <div v-else>
-      <v-progress-circular indeterminate></v-progress-circular>
-    </div>
+      <div v-else>
+        <v-progress-circular indeterminate></v-progress-circular>
+      </div>
+    </v-container>
   </template>
   
   <script setup lang="ts">
-  import FlightList from '@/components/flights/FlightList.vue';
-  import { useRoute } from 'vue-router';
   import { ref } from 'vue';
+  import { useRoute } from 'vue-router';
   import { fetchVesselsIfNecessary, getVessel } from '@/stores/vessels';
   import { subscribeRealtime } from '@/stores/flight';
   import { useObservableShallow } from '@/helper/reactivity';
@@ -52,7 +62,9 @@
   import axios from 'axios';
   import { useRssApiBaseUri } from '@/composables/api/rssFlightServerApi';
   import { until } from '@vueuse/core';
+  import FlightList from '@/components/flights/FlightList.vue';
   import VesselComponentsList from '@/components/vessel/VesselComponentsList.vue';
+  import AddUserPermission from '@/components/permissions/AddUserPermission.vue';
   
   const route = useRoute()
   const id = route.params.id as string
@@ -73,8 +85,10 @@
   const tab = ref('flights')
   
   function copyAuthToken() {
-    navigator.clipboard.writeText(token.value!);
-    alert("Successfully copied token!")
+    if (token.value) {
+      navigator.clipboard.writeText(token.value);
+      alert("Successfully copied token!");
+    }
   }
   
   function clearAuthToken() {
@@ -105,7 +119,7 @@
   
   <style scoped>
   .tab-content {
-    height: 100%; /* Adjust this value as needed */
+    height: calc(100vh - 300px); 
     overflow-y: auto;
   }
   </style>
