@@ -10,18 +10,30 @@
           <v-card-title>Actions</v-card-title>
           <v-card-text>
             <div class="d-flex flex-row align-center">
-              <div class="d-flex flex-column flex-grow-1" style="max-width: 400px">
-                <v-alert v-if="tokenError" :text="tokenError" type="error"></v-alert>
-                <div v-if="token" class="d-flex align-center">
-                  <p class="text-truncate mr-2">{{ token }}</p>
-                  <v-btn icon @click="copyAuthToken" v-if="token">
-                    <v-icon>mdi-content-copy</v-icon>
+              <div class="flex-grow-1" style="max-width: 600px">
+                <div class="d-flex align-center">
+                  <v-text-field
+                    v-if="token"
+                    :model-value="token"
+                    readonly
+                    label="Auth Code"
+                    hide-details
+                    class="flex-grow-1 mr-2"
+                    append-inner-icon="mdi-content-copy"
+                    @click:append-inner="copyAuthToken"
+                  >
+                    <template v-slot:append>
+                      <v-icon :color="copyIconColor" v-if="copySuccess">mdi-check</v-icon>
+                    </template>
+                  </v-text-field>
+                  <v-btn @click="createAuthCode" :loading="tokenLoading" v-if="!token">
+                    Create Auth Code
+                  </v-btn>
+                  <v-btn @click="clearAuthToken" v-if="token" color="error" class="ml-2">
+                    Clear
                   </v-btn>
                 </div>
-                <div class="mt-2">
-                  <v-btn @click="createAuthCode" :loading="tokenLoading" v-if="!token">Create Auth Code</v-btn>
-                  <v-btn @click="clearAuthToken" v-if="token" class="ml-2">Clear</v-btn>
-                </div>
+                <v-alert v-if="tokenError" :text="tokenError" type="error" class="mt-2"></v-alert>
               </div>
               <div class="ml-4">
                 <AddUserPermission :vesselId="vessel._id"></AddUserPermission>
@@ -53,7 +65,7 @@
   </template>
   
   <script setup lang="ts">
-  import { ref } from 'vue';
+  import { ref, computed } from 'vue';
   import { useRoute } from 'vue-router';
   import { fetchVesselsIfNecessary, getVessel } from '@/stores/vessels';
   import { subscribeRealtime } from '@/stores/flight';
@@ -74,6 +86,7 @@
   const token = ref<string | undefined>(undefined)
   const tokenError = ref<string | undefined>(undefined)
   const tokenLoading = ref<boolean>(false)
+  const copySuccess = ref<boolean>(false)
   
   fetchVesselsIfNecessary()
   subscribeRealtime()
@@ -84,10 +97,15 @@
   
   const tab = ref('flights')
   
+  const copyIconColor = computed(() => copySuccess.value ? 'green' : undefined)
+  
   function copyAuthToken() {
     if (token.value) {
       navigator.clipboard.writeText(token.value);
-      alert("Successfully copied token!");
+      copySuccess.value = true;
+      setTimeout(() => {
+        copySuccess.value = false;
+      }, 5000); // Reset to copy icon after 5 seconds
     }
   }
   
