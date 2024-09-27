@@ -79,6 +79,6 @@ trySilentLogin()
 
 html {
   width: 100vw;
-  overflow-y: hidden !important;
+  //overflow-y: hidden !important;
 }
 </style>

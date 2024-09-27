@@ -2,13 +2,27 @@
     <div class="d-flex flex-row" style="height: 100%;">
 
         <span class="tabs">
-
-            <v-tabs density="compact" align-tabs="start" v-model="selectedTab" direction="vertical">
-                <v-tab v-for="item in tabs" :key="item" :value="item">
-                    {{ item }}
-                </v-tab>
-            </v-tabs>
-        </span>
+      <v-list density="compact">
+        <v-list-item
+          v-for="item in tabs"
+          :key="item"
+          :value="item"
+          :active="selectedTab === item"
+          @click="selectedTab = item"
+        >
+          {{ item }}
+        </v-list-item>
+      </v-list>
+      <v-divider></v-divider>
+      <v-list density="compact">
+        <v-list-item>
+          <v-btn block variant="outlined" @click="onDone">Done</v-btn>
+        </v-list-item>
+        <v-list-item>
+          <v-btn block color="error" @click="onDelete">Delete</v-btn>
+        </v-list-item>
+      </v-list>
+    </span>
 
         <div class="d-flex flex-column flex-grow" style="width:100%; height: 100%;">
 
@@ -47,9 +61,7 @@
             <!-- <div v-if="selectedTab === 'General'" class="settings-item">
              <DashboardResizer></DashboardResizer>
             </div> -->
-            <v-btn variant="outlined" @click="onDone">Done</v-btn>
-            <v-btn color="error" @click="onDelete">Delete</v-btn>
-
+            
         </div>
 
     </div>
