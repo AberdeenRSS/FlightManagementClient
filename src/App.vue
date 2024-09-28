@@ -48,7 +48,6 @@ trySilentLogin()
     <v-app-bar density="compact">
       <template v-slot:prepend>
         <v-btn @click="router.push('/')">Home</v-btn>
-        <v-btn @click="router.push('/about')">About</v-btn>
       </template>
 
 
