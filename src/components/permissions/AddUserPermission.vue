@@ -1,13 +1,13 @@
 <template>
   <div>
-    <button class="button" @click="openDialog">Permissions</button>
+    <button class="button is-primary" @click="openDialog">Permissions</button>
 
     <div class="modal" :class="{ 'is-active': dialog }">
       <div class="modal-background" @click="closeDialog"></div>
       <div class="modal-content">
         <div class="overlay-container">
           <header class="overlay-header">
-            <p class="is-size-4">{{ vessel!.name }} Permissions</p>
+            <p class="is-size-4">{{ vessel!.name }}</p>
             <button class="delete" aria-label="close" @click="closeDialog"></button>
           </header>
           <section class="overlay-body">
@@ -32,13 +32,19 @@
                   </div>
                 </div>
               </div>
-              <div>
-                <button class="button is-primary" @click="addInputtedUser">Add</button>
+              <div class="field">
+                <div class="control">
+                  <button class="button is-primary" @click="addInputtedUser">Add</button>
+                </div>
               </div>
             </div>
 
+            <div v-if="permissionsError" class="notification is-danger mt-3">
+              {{ permissionsError }}
+            </div>
+
             <div v-if="hasPermissions" class="mt-4">
-              <details>
+              <details @toggle="onToggleExistingUsers">
                 <summary class="has-text-weight-bold mb-2">Existing Users</summary>
                 <div class="table-container">
                   <table class="table is-fullwidth is-striped is-narrow">
@@ -49,8 +55,8 @@
                       </tr>
                     </thead>
                     <tbody>
-                      <tr v-for="(permission, user) in vessel!.permissions" :key="user">
-                        <td>{{ user }}</td>
+                      <tr v-for="(permission, userId) in vessel!.permissions" :key="userId">
+                        <td>{{ userNames && userNames[userId] || 'Loading...' }}</td>
                         <td>{{ permission }}</td>
                       </tr>
                     </tbody>
@@ -70,7 +76,7 @@ import { ref, toRefs, computed } from 'vue'
 import { getVessel } from '@/stores/vessels'
 import { useObservableShallow } from '@/helper/reactivity'
 import { useAuthHeaders } from '../../composables/api/getHeaders'
-import axios from 'axios'
+import axios, { AxiosError } from 'axios'
 import { useRssApiBaseUri } from '../../composables/api/rssFlightServerApi'
 
 const props = defineProps({
@@ -83,21 +89,31 @@ const props = defineProps({
 const { vesselId } = toRefs(props)
 
 const vessel = useObservableShallow(getVessel(vesselId))
-
-console.log(vessel)
-
+const permissionsError = ref<string | undefined>()
 const dialog = ref(false)
 const userEmail = ref('')
 const userPermission = ref('')
+const userNames = ref()
 
 const authHeaders = useAuthHeaders();
 
-const url = computed(() => {
-  return `/vessel/set_permission/${vesselId.value}/${userEmail.value}/${userPermission.value.toLowerCase()}`
-})
-
 const hasPermissions = computed(() => {
   return vessel.value && vessel.value.permissions && Object.keys(vessel.value.permissions).length > 0
+})
+
+type PermissionDisplayNameMapping = {
+  [key: string]: string
+}
+
+const permissionDisplayNameMapping: PermissionDisplayNameMapping = {
+  'Owner': 'owner',
+  'Commands': 'write',
+  'View': 'view',
+  'None': 'none'
+}
+
+const url = computed(() => {
+  return `/vessel/set_permission/${vesselId.value}/${userEmail.value}/${permissionDisplayNameMapping[userPermission.value]}`
 })
 
 async function addInputtedUser() {
@@ -105,7 +121,33 @@ async function addInputtedUser() {
     await axios.post(`${useRssApiBaseUri()}${url.value}`, {}, { headers: authHeaders.value })
     closeDialog()
   } catch (e) {
-    console.log(e)
+    const error = e as AxiosError<unknown>
+    const responseData = (error.response?.data as { detail?: string })
+    permissionsError.value = responseData?.detail;
+  }
+}
+
+async function fetchUserNames() {
+  if (vessel.value && vessel.value.permissions) {
+    const permissionKeys = Object.keys(vessel.value.permissions);
+    try {
+      const url = `${useRssApiBaseUri()}/user/get_names`;
+      const response = await axios.post(url, 
+        permissionKeys,
+        {
+          headers: {
+            ...authHeaders.value,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      userNames.value = response.data;
+    } catch (error) {
+      console.error('Failed to fetch user names:', error);
+    }
+  } else {
+    console.error('Vessel permissions data is not available');
   }
 }
 
@@ -117,6 +159,13 @@ function closeDialog() {
   dialog.value = false
   userEmail.value = ''
   userPermission.value = ''
+  permissionsError.value = undefined
+}
+
+function onToggleExistingUsers(event: Event) {
+  if ((event.target as HTMLDetailsElement).open) {
+    fetchUserNames()
+  }
 }
 </script>
 
@@ -132,7 +181,7 @@ function closeDialog() {
 }
 
 .overlay-header {
-  background-color: #ffffff;
+  background-color: #f5f5f5;
   padding: 1rem;
   display: flex;
   justify-content: space-between;

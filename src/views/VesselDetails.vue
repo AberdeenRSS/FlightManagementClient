@@ -4,59 +4,54 @@
       <h1 class="title is-3 mb-3">
         {{ vessel.name }}
       </h1>
-      
+
       <!-- Actions Panel -->
-      <div class="panel mb-3">
-        <p class="panel-heading">
-          Actions
-        </p>
-        <div class="panel-block">
-          <div class="is-flex is-align-items-center is-flex-wrap-wrap">
-            <div class="is-flex-grow-1" style="max-width: 600px">
-              <div class="field has-addons">
-                <div class="control is-expanded">
-                  <input
-                    v-if="token"
-                    :value="token"
-                    readonly
-                    class="input"
-                    type="text"
-                    placeholder="Auth Code"
-                  >
-                </div>
-                <div class="control">
-                  <button class="button is-info" @click="copyAuthToken" v-if="token">
-                    <span class="icon">
-                      <i :class="['fas', copySuccess ? 'fa-check' : 'fa-copy']"></i>
-                    </span>
-                  </button>
-                </div>
-                <div class="control">
-                  <button class="button is-danger" @click="clearAuthToken" v-if="token">
-                    Clear
-                  </button>
-                </div>
+    
+
+        <div class="is-flex is-align-items-center is-flex-wrap-wrap">
+          <div class="is-flex-grow-1" style="max-width: 600px">
+            <div class="field has-addons">
+              <div class="control is-expanded">
+                <input v-if="token" :value="token" readonly class="input" type="text" placeholder="Auth Code">
               </div>
-              <button @click="createAuthCode" :class="['button is-primary mt-2', {'is-loading': tokenLoading}]" v-if="!token">
-                Create Auth Code
-              </button>
-              <p v-if="tokenError" class="has-text-danger mt-2">{{ tokenError }}</p>
+              <div class="control">
+                <button class="button is-info" @click="copyAuthToken" v-if="token">
+                  <span class="icon">
+                    <i :class="['fas', copySuccess ? 'fa-check' : 'fa-copy']"></i>
+                  </span>
+                </button>
+              </div>
+              <div class="control">
+                <button class="button is-danger" @click="clearAuthToken" v-if="token">
+                  Clear
+                </button>
+              </div>
             </div>
-            <div class="ml-4 mt-2">
-              <AddUserPermission :vesselId="vessel._id"></AddUserPermission>
-            </div>
+            <button @click="createAuthCode" :class="['button is-primary mt-2', { 'is-loading': tokenLoading }]"
+              v-if="!token">
+              Create Auth Code
+            </button>
+            <p v-if="tokenError" class="has-text-danger mt-2">{{ tokenError }}</p>
+          </div>
+
+
+          <div class="ml-4 mt-2" v-if="currentUser && vessel?.permissions[currentUser.uid] === 'owner'">
+            <AddUserPermission :vesselId="vessel!._id"></AddUserPermission>
+          </div>
+          <div v-else-if="!hasOwnerPermission">
+            <ClaimVessel :vesselId="vessel!._id"></ClaimVessel>
           </div>
         </div>
-      </div>
+ 
 
       <!-- Tabs -->
       <div class="is-flex-grow-1 d-flex flex-column">
         <div class="tabs">
           <ul>
-            <li :class="{'is-active': tab === 'flights'}">
+            <li :class="{ 'is-active': tab === 'flights' }">
               <a @click="tab = 'flights'">Flights</a>
             </li>
-            <li :class="{'is-active': tab === 'components'}">
+            <li :class="{ 'is-active': tab === 'components' }">
               <a @click="tab = 'components'">Parts</a>
             </li>
           </ul>
@@ -74,10 +69,7 @@
                   </p>
                   <ul class="menu-list">
                     <li v-for="part in vessel.parts" :key="part._id">
-                      <a 
-                        @click="selectPart(part._id)"
-                        :class="{'is-active': selectedPartId === part._id}"
-                      >
+                      <a @click="selectPart(part._id)" :class="{ 'is-active': selectedPartId === part._id }">
                         {{ part.name }}
                       </a>
                     </li>
@@ -119,6 +111,7 @@ import { useRssApiBaseUri } from '@/composables/api/rssFlightServerApi';
 import { until } from '@vueuse/core';
 import FlightList from '@/components/flights/FlightList.vue';
 import AddUserPermission from '@/components/permissions/AddUserPermission.vue';
+import ClaimVessel from '@/components/permissions/ClaimVessel.vue';
 
 const route = useRoute()
 const id = route.params.id as string
@@ -134,7 +127,7 @@ fetchVesselsIfNecessary()
 subscribeRealtime()
 
 const vessel = useObservableShallow(getVessel(id))
-
+console.log(vessel)
 const tab = ref('flights')
 
 const selectedPartId = ref<string | null>(null)
@@ -146,6 +139,11 @@ const selectedPart = computed(() => {
 function selectPart(partId: string) {
   selectedPartId.value = partId;
 }
+
+const hasOwnerPermission = computed(() => {
+  if (!vessel.value || !vessel.value.permissions) return false;
+  return Object.values(vessel.value.permissions).includes('owner');
+});
 
 function copyAuthToken() {
   if (token.value) {
@@ -187,28 +185,35 @@ async function createAuthCode() {
 .content-container {
   padding-top: 2rem;
 }
+
 .tab-content {
   height: calc(100vh - 250px);
   overflow-y: auto;
 }
+
 .parts-list-container {
   height: 100%;
 }
+
 .part-details {
   background-color: #f5f5f5;
   border-radius: 4px;
 }
+
 .panel {
   box-shadow: none;
   border: 1px solid #dbdbdb;
 }
+
 .panel-heading {
   background-color: #f5f5f5;
   border-bottom: 1px solid #dbdbdb;
 }
+
 .panel-block {
   border-bottom: none;
 }
+
 .tabs ul {
   border-bottom-color: #dbdbdb;
 }
