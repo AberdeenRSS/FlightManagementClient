@@ -1,63 +1,71 @@
 <template>
-    <v-container fluid>
-      <v-card class="mb-4 pa-4">
-        <v-card-title class="text-h6 pb-2">Add Vessel</v-card-title>
-        <v-text-field 
-          v-model="newVesselName" 
-          label="New Vessel Name"
-          class="flex-grow-1"
-          density="compact"
-          variant="outlined"
-          hide-details
-        >
-          <template v-slot:append-inner>
-            <v-btn 
-              @click="addVessel"
-              density="compact"
-              color="primary"
-            >
-              Submit
-            </v-btn>
-          </template>
-        </v-text-field>
-      </v-card>
-  
-      <v-card class="vessel-list-card">
-        <v-card-title class="text-h6 pb-2">Vessels</v-card-title>
-        <v-card-text class="pa-0">
-          <div class="vessel-list">
-            <v-table>
-              <thead>
-                <tr>
-                  <th class="text-left">Name</th>
-                  <th class="text-left">Version</th>
-                  <th class="text-left">Num. Parts</th>
-                  <th class="text-left"></th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(item, key) of vessels" :key="key">
-                  <td>
-                    <a 
-                      style="text-decoration: underline;cursor: pointer;"
-                      @click="router.push(`./vessel/details/${item.entity?._id}`)"
-                    >
-                      {{ item.entity?.name }}
-                    </a>
-                  </td>
-                  <td>{{ item.entity?._version }}</td>
-                  <td>{{ item.entity?.parts.length }}</td>
-                  <td>
-                    <v-btn @click="router.push(`./vessel/details/${item.entity?._id}`)">Details</v-btn>
-                  </td>
-                </tr>
-              </tbody>
-            </v-table>
-          </div>
-        </v-card-text>
-      </v-card>
-    </v-container>
-  </template>
+  <div class="container is-fluid content-container">
+    <div class="mb-5">
+      <h2 class="title is-4 mb-3">Add Vessel</h2>
+      <div class="field has-addons">
+        <div class="control is-expanded">
+          <input 
+            class="input"
+            type="text"
+            v-model="newVesselName"
+            placeholder="New Vessel Name"
+          >
+        </div>
+        <div class="control">
+          <button 
+            @click="addVessel"
+            class="button is-primary"
+          >
+            Submit
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="table-container" style="max-height: calc(80vh - 120px); overflow-y: auto;">
+        <table class="table is-fullwidth is-hoverable">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Version</th>
+              <th>Num. Parts</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(item, key) of vessels" :key="key">
+              <td>
+                <a 
+                  @click="router.push(`./vessel/details/${item.entity?._id}`)"
+                  class="has-text-link"
+                >
+                  {{ item.entity?.name }}
+                </a>
+              </td>
+              <td>{{ item.entity?._version }}</td>
+              <td>{{ item.entity?.parts.length }}</td>
+              <td>
+                <button 
+                  @click="router.push(`./vessel/details/${item.entity?._id}`)"
+                  class="button is-small is-light"
+                >
+                  Details
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.content-container {
+  padding-top: 3rem; /* Adjust this value based on your navbar height */
+}
+</style>
   
   <script setup lang="ts">
   import { useObservableShallow } from '@/helper/reactivity';

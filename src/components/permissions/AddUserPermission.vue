@@ -7,9 +7,8 @@
       width="1024"
     >
       <template v-slot:activator="{ props }">
-        <v-btn
-          color="primary"
-          v-bind="props">Permissions</v-btn>
+        <button class="button"
+          v-bind="props">Permissions</button>
       </template>
       <v-card>
         <v-card-title>
