@@ -81,7 +81,7 @@
                   <h3 class="title is-4">{{ selectedPart.name }}</h3>
                   <div class="content">
                     <p><strong>Type:</strong> {{ selectedPart!.part_type || "No type available" }}</p>
-                    <p><strong>Virtual:</strong> {{ selectedPart!.virtual || "Unknown" }}</p>
+                    <p><strong>Virtual:</strong> {{ selectedPart!.virtual }}</p>
                     <!-- Add more part details as needed -->
                   </div>
                 </div>
