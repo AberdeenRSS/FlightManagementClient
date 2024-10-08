@@ -21,7 +21,6 @@
         </div>
       </div>
     </div>
-
     <div>
       <div class="table-container" style="max-height: calc(80vh - 120px); overflow-y: auto;">
         <table class="table is-fullwidth is-hoverable">

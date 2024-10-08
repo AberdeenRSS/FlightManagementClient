@@ -1,39 +1,31 @@
 <template>
     <div class="d-flex flex-row" style="height: 100%;">
-
         <span class="tabs">
-      <v-list density="compact">
-        <v-list-item
-          v-for="item in tabs"
-          :key="item"
-          :value="item"
-          :active="selectedTab === item"
-          @click="selectedTab = item"
-        >
-          {{ item }}
-        </v-list-item>
-      </v-list>
-      <v-divider></v-divider>
-      <v-list density="compact">
-        <v-list-item>
-          <v-btn block variant="outlined" @click="onDone">Done</v-btn>
-        </v-list-item>
-        <v-list-item>
-          <v-btn block color="error" @click="onDelete">Delete</v-btn>
-        </v-list-item>
-      </v-list>
-    </span>
+            <v-list density="compact" style="width:200px">
+                <v-list-item v-for="item in tabs" :key="item" :value="item" :active="selectedTab === item"
+                    @click="selectedTab = item">
+                    {{ item }}
+                </v-list-item>
+                <v-list-item>
+                    <v-btn block variant="outlined" @click="onDone">Done</v-btn>
+                </v-list-item>
+                <v-list-item>
+                    <v-btn block color="error" @click="onDelete">Delete</v-btn>
+                </v-list-item>
+            </v-list>
+        </span>
 
         <div class="d-flex flex-column flex-grow" style="width:100%; height: 100%;">
-
             <div v-if="selectedTab === 'Select View'" class="settings-item mt-3">
-                <v-radio-group v-for="(view,index) in views" :key="index" density="compact" v-model="widgetData.selectedView">
+                <v-radio-group v-for="(view, index) in views" :key="index" density="compact"
+                    v-model="widgetData.selectedView">
                     <v-radio :label="view" :value="view"></v-radio>
                 </v-radio-group>
             </div>
-            
+
             <div v-if="selectedTab === 'Select Part'" class="settings-item" style="height: 80%;">
-                <VesselChart :vessel-id="vesselId" :version="flight?._vessel_version" v-model="widgetData.selectedParts">
+                <VesselChart :vessel-id="vesselId" :version="flight?._vessel_version"
+                    v-model="widgetData.selectedParts">
                 </VesselChart>
             </div>
 
@@ -61,7 +53,7 @@
             <!-- <div v-if="selectedTab === 'General'" class="settings-item">
              <DashboardResizer></DashboardResizer>
             </div> -->
-            
+
         </div>
 
     </div>
@@ -102,7 +94,7 @@ widgetData.value.selectedParts = widgetData.value.selectedParts ?? {}
 widgetData.value.selectedView = widgetData.value.selectedView ?? 'Graph'
 widgetData.value.inSettings = 'inSettings' in widgetData.value ? widgetData.value.inSettings : true
 
-const { vesselId, flightId, setElementInSettings} = useFlightViewState()
+const { vesselId, flightId, setElementInSettings } = useFlightViewState()
 const { vessel$, flight$ } = getFlightAndHistoricVessel(vesselId, flightId)
 const flight = useObservableShallow(flight$)
 const selectedPart$ = getPart(vessel$, selectedPartId)
@@ -147,11 +139,11 @@ const commandSelectedPart = computed({
     }
 })
 
-function onDone(){
+function onDone() {
     setElementInSettings(undefined)
 }
 
-function onDelete(){
+function onDelete() {
     setElementInSettings(undefined)
     deleteWidget()
 }
