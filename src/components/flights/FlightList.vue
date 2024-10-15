@@ -10,7 +10,14 @@
         </thead>
         <tbody>
           <tr v-for="item in flightsSorted" :key="item._id">
-            <td>{{ item!.name }}</td>
+            <td>
+              <a 
+                @click="router.push(`/flight/${item._vessel_id}/${item!._id}`)"
+                class="has-text-link"
+                >
+                {{ item!.name }}
+              </a>
+            </td>
             <td>
               {{ new Date(Date.parse(asUtcString(item!.start))).toLocaleDateString() }}
               {{ new Date(Date.parse(asUtcString(item!.start))).toLocaleTimeString() }}
