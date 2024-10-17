@@ -26,7 +26,7 @@
 
             <div class="current-selector" :style="`left: ${(currentInternal) * 100}%;`" @mouseenter="displayCurrentPreview++"
                 @mouseleave="displayCurrentPreview--">
-                <div :class="'selector-bar' + (displayCurrentPreview ? ' selector-hover' : '')">
+                <div :class="'selector-bar' + (displayCurrentPreview ? ' current-selector-hover' : '')">
                     <div class="drag-box" @mousedown="onDragCurStart($event)" @touchstart="onDragCurStart($event)"></div>
                 </div>
             
@@ -185,8 +185,11 @@ $playbar-color: lightgray;
     }
 
     .selector-hover {
+        filter: invert(20%);
+    }
 
-            filter: invert(20%);
+    .current-selector-hover {
+        background-color: #555555!important;
     }
 
     .min-selector {
