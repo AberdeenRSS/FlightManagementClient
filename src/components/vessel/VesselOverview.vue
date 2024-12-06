@@ -1,7 +1,8 @@
 <template>
   <div class="container is-fluid content-container">
+    <h2 class="title is-4 mb-3">Vessels</h2>
     <div class="mb-5">
-      <h2 class="title is-4 mb-3">Add Vessel</h2>
+      
       <div class="field has-addons">
         <div class="control is-expanded">
           <input 
@@ -16,7 +17,7 @@
             @click="addVessel"
             class="button is-primary"
           >
-            Submit
+            Create Vessel
           </button>
         </div>
       </div>
