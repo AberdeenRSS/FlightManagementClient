@@ -68,7 +68,7 @@
   
   <script setup lang="ts">
   import { useObservableShallow } from '@/helper/reactivity';
-  import { fetchVesselsIfNecessary, getVessels } from '@/stores/vessels';
+  import { fetchVesselsIfNecessary, getVessels, addVesselToStore } from '@/stores/vessels';
   import { useRouter } from 'vue-router';
   import { computed, ref } from 'vue';
   import { useAuthHeaders } from '../../composables/api/getHeaders'
@@ -89,8 +89,14 @@
       return
     }
     try {
-      await axios.post(`${useRssApiBaseUri()}${url.value}`, {}, { headers: authHeaders.value })
-      newVesselName.value = '' // Clear the input after successful addition
+      const response = await axios.post(`${useRssApiBaseUri()}${url.value}`, {}, { headers: authHeaders.value })
+      if (response.status == 200) {
+        addVesselToStore(response.data)
+        newVesselName.value = '' // Clear the input after successful addition
+      } else {
+        alert("Error creating vessel: " + response.statusText)
+      }
+      
     } catch (e) {
       alert("Error creating vessel: " + e)
     }

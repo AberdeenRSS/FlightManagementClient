@@ -128,6 +128,15 @@ export async function fetchHistoricVessel(id: string, version: number) {
 
 }
 
+export function addVesselToStore(vessel:Vessel) {
+    state.value.vessels[vessel._id] = {
+        entity: vessel,
+        loadingDetails: 'LOADED'
+    }
+    triggerRef(state)
+}
+
+
 export type LoadingStates =
     'NOT_REQUESTED'
     | 'REQUESTED'
