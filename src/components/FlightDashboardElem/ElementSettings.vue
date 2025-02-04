@@ -59,6 +59,13 @@
     </div>
 </template>
 
+<style>
+.v-label {
+  color: black !important;
+}
+
+</style>
+
 <script lang="ts" setup>
 
 import FlightStatus3dSettings from '@/components/flight_data/3dFlightStatus/3dFlightStatusSettings.vue';
