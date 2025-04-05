@@ -1,30 +1,10 @@
 <template>
-   
-        <div focusable class="d-flex justify-space-between dispatch-container" style="height: 40px;"
-            @focusin="cmdExpanded = true">
 
-            <v-menu :noClickAnimation="true" :transition="false" close-delay="0" open-delay="0" location="top">
-                <template v-slot:activator="{ props }">
-                    <v-btn variant="outlined" size="medium" dark v-bind="props">
-                        {{ selectedPart?.name ?? 'Select Part' }}
-                    </v-btn>
-                </template>
+    <v-col>
+        
+    </v-col>
 
-                <div class="component-select">
-                    <VesselChart :vessel-id="vesselId" :version="flight?._vessel_version" v-model="selected"></VesselChart>
-                </div>
-            </v-menu>
-            <v-select density="compact" :single-line="true" location="top" label="Command" item-title="name" :items="availableCommands"
-                v-model="selectedCommandType" transition="none"></v-select>
-
-
-            <slot>
-
-            </slot>
-
-            <!-- <v-btn variant="plain" size="small" :icon="cmdExpanded ? 'mdi-menu-down' : 'mdi-menu-up'"
-            @click="cmdExpanded = !cmdExpanded"></v-btn> -->
-        </div>
+    <ComponentSelectList v-model="selectedPartId"></ComponentSelectList>
 </template>
 
 <style lang="scss">
@@ -54,7 +34,7 @@
 </style>
   
 <script setup lang="ts">
-import VesselChart from '@/components/vessel/VesselChart.vue';
+import ComponentSelectList from '@/components/vessel/ComponentSelectList.vue';
 import { useFlightViewState } from '@/composables/useFlightView';
 import { fromImmediate, useObservableShallow } from '@/helper/reactivity';
 import { getFlightAndHistoricVessel } from '@/stores/combinedMethods';
@@ -106,6 +86,8 @@ const { vesselId, flightId } = useFlightViewState()
 const { vessel$, flight$ } = getFlightAndHistoricVessel(vesselId, flightId)
 
 const flight = useObservableShallow(flight$)
+
+const vessel = useObservableShallow(vessel$)
 
 const selected = ref<{ [id: string]: boolean }>({})
 

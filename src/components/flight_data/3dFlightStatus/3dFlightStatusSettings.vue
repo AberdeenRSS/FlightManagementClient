@@ -1,9 +1,5 @@
 <template>
-    <v-select v-if="series" density="compact" v-model="widgetData.selectedSeriesMulti['orientation-w']" label="Select Orientation W" no-data-text="No part selected/Part has no series" :items="series"></v-select>
-    <v-select v-if="series" density="compact" v-model="widgetData.selectedSeriesMulti['orientation-x']" label="Select Orientation X" no-data-text="No part selected/Part has no series" :items="series"></v-select>
-    <v-select v-if="series" density="compact" v-model="widgetData.selectedSeriesMulti['orientation-y']" label="Select Orientation Y" no-data-text="No part selected/Part has no series" :items="series"></v-select>
-    <v-select v-if="series" density="compact" v-model="widgetData.selectedSeriesMulti['orientation-z']" label="Select Orientation Z" no-data-text="No part selected/Part has no series" :items="series"></v-select>
-
+    <v-select v-if="series" density="compact" v-model="widgetData.selectedSeriesMulti['orientation']" label="Select Orientation"  no-data-text="No part selected/Part has no series" :items="series"></v-select>
 </template>
     
 <style lang="scss"></style>
@@ -38,7 +34,7 @@ const selectedPart$ = combineLatest([vessel$, fromImmediate(selectedPartId)]).pi
 )
 
 const series$ = combineLatest([flight$, selectedPart$]).pipe(
-    map(([flight, selectedPart]) => flight && selectedPart ? flight.measured_parts[selectedPart._id].map(s => s.name) : undefined)
+    map(([flight, selectedPart]) => flight && selectedPart ? flight.measured_parts[selectedPart._id].filter(s => Array.isArray(s.type) && s.type.length == 4).map(s => s.name) : undefined)
 )
 
 const series = useObservableShallow(series$)

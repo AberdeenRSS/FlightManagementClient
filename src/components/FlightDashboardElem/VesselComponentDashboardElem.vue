@@ -98,11 +98,9 @@ import { useComponentConfiguration } from '@/composables/componentsConfiguration
 import { useFlightViewState } from '@/composables/useFlightView';
 import { useObservableShallow } from '@/helper/reactivity';
 import { getFlightAndHistoricVessel } from '@/stores/combinedMethods';
-import { useFlightDataStore } from '@/stores/flight_data';
 import { getPart } from '@/stores/vessels';
-import { watchDebounced } from '@vueuse/shared';
 import { map, shareReplay } from 'rxjs';
-import { computed, inject, ref, watch } from 'vue';
+import {  inject, ref } from 'vue';
 import { useSelectedPart, useWidgetData } from '../flight_data/flightDashboardElemStoreTypes';
 import { DASHBOARD_WIDGET_ID } from '../misc/dashboard/DashboardComposable';
 
@@ -112,8 +110,7 @@ const dashboardWidgetId = inject(DASHBOARD_WIDGET_ID)
 if (!dashboardWidgetId)
     throw new Error('Resizer not used in within a dashboard')
 
-const { vesselId, flightId, timeRange, resolution, live, setElementInSettings } = useFlightViewState()
-const { fetchFlightDataInTimeFrame } = useFlightDataStore()
+const { vesselId, flightId, setElementInSettings } = useFlightViewState()
 const widgetData = useWidgetData(dashboardWidgetId)
 
 if (!('inSettings' in widgetData.value) && dashboardWidgetId)
@@ -137,25 +134,26 @@ const { configurations } = useComponentConfiguration()
 const relevantConfiguration$ = selectedPart$.pipe(map(part => part ? configurations[part.part_type] : undefined))
 const relevantConfiguration = useObservableShallow(relevantConfiguration$)
 
-const debouncedRange = ref(timeRange.value)
+// const debouncedRange = ref(timeRange.value)
+// const debounceTime = computed(() => live.value ? 4000 : 300)
+// watchDebounced(timeRange, r => debouncedRange.value = r, { immediate: true, deep: true, debounce: debounceTime, maxWait: 5000 })
 
-const debounceTime = computed(() => live.value ? 4000 : 300)
+// watch([flightId, selectedPartId, debouncedRange, resolution, live], ([v, id, r, res, l]) => {
 
-watchDebounced(timeRange, r => debouncedRange.value = r, { immediate: true, deep: true, debounce: debounceTime, maxWait: 5000 })
+//     if (!id)
+//         return
 
-watch([flightId, selectedPartId, debouncedRange, resolution, live], ([v, id, r, res, l]) => {
+//     if (!r)
+//         return
 
-    if (!id)
-        return
+//     if (!l)
+//         return
 
-    if (!r)
-        return
+//     if (res == 'eternity')
+//         return
 
-    if (!l)
-
-        if (res != 'eternity')
-            fetchFlightDataInTimeFrame(v, id, r.start, r.end, res)
-}, { immediate: true, deep: true })
+//     fetchFlightDataInTimeFrame(v, id, r.start, r.end, res)
+// }, { immediate: true, deep: true })
 
 function onSettings(){
     setElementInSettings(dashboardWidgetId)

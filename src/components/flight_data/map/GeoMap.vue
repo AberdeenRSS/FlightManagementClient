@@ -49,20 +49,26 @@ const series$ = fromImmediate(widgetData).pipe(
 
 const { getOrInitStore } = useFlightDataStore()
 
-const flightData$ = combineLatest([selectedPart$, fromImmediate(flightId)]).pipe(
-    switchMap(([part, flightId]) => part && flightId ? fromImmediate(getOrInitStore(flightId, part._id)) : of(undefined)),
+const flightData$ = combineLatest([selectedPart$, fromImmediate(flightId), series$]).pipe(
+    switchMap(([part, flightId, series]) =>
+        part && flightId ?
+            combineLatest([
+                fromImmediate(getOrInitStore(flightId, part._id, series.lat)),
+                fromImmediate(getOrInitStore(flightId, part._id, series.lon)),
+            ]) 
+            : of(undefined)),
 )
 
 const res$ = fromImmediate(resolution).pipe(map(r => r === 'smallest' ? undefined : r))
 
-const measurement$ = combineLatest([flightData$, throttledTimeRange$, res$, series$]).pipe(
-    map(([store, range, r, s]) => store && range ? getClosest(store.measurements, range.cur, r, (data) => !!data.measurements_aggregated[s.lat] && !!data.measurements_aggregated[s.lon]) : undefined)
+const measurement$ = combineLatest([flightData$, throttledTimeRange$, res$]).pipe(
+    map(([store, range, r]) => store && range ? store.map(s => getClosest(s.measurements, range.cur, r)) : undefined)
 )
 
-const values$ = combineLatest([measurement$, series$]).pipe(
-    map(([measurement, series]) => ({
-        lat: measurement?.measurements_aggregated[series.lat]?.[0],
-        lon: measurement?.measurements_aggregated[series.lon]?.[0],
+const values$ = combineLatest([measurement$]).pipe(
+    map(([measurement]) => ({
+        lat: measurement?.[0]?.avg as number,
+        lon: measurement?.[1]?.avg as number,
     }))
 )
 

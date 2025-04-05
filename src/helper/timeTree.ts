@@ -250,7 +250,7 @@ function stitchRanges(timeSpans: TimeSpan[]){
     while(i+1 < timeSpans.length){
         const next = timeSpans[i + 1]
 
-        if((cur.end.getTime() + 1)  === next.start.getTime()){
+        if((cur.end.getTime() - next.start.getTime()) < 20){
             cur.end = next.end
             i++
             continue;

@@ -69,7 +69,7 @@ const series = computed(() => widgetData.value.selectedSeries)
 
 const { getOrInitStore } = useFlightDataStore()
 
-const flightData = unwrapShallowRef(computed(() => partId.value && flightId.value ? getOrInitStore(flightId.value, partId.value): undefined))
+const flightData = unwrapShallowRef(computed(() => partId.value && flightId.value ? getOrInitStore(flightId.value, partId.value, series.value): undefined))
 
 const value = ref<MeasurementTypes | undefined>()
 
@@ -87,7 +87,7 @@ watchDebounced([flightData, timeRangeDebounced, series, resolution], ([store, ra
         return
     }
 
-    value.value = v.measurements_aggregated[s]?.[0]
+    value.value = v?.avg
     
 }, { immediate: true, deep: false })
 
