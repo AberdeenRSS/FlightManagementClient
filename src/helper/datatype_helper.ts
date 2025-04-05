@@ -1,4 +1,7 @@
-export function toJsType(typename: string){
+export function toJsType(typename: string | [string, string][]){
+
+    if (Array.isArray(typename))
+        return typeof {}
 
     typename = typename.toLowerCase()
 

@@ -21,17 +21,17 @@ import { useFlightViewState, type TimeRange } from '@/composables/useFlightView'
 import { getValues, type AggregationLevels } from '@/helper/timeTree';
 import { useFlightDataStore, type FlightDataState } from '@/stores/flight_data';
 import { watchDebounced } from '@vueuse/core';
-import { inject, onUnmounted, ref, shallowRef, triggerRef, watch, type Ref, type WatchStopHandle, onMounted } from 'vue';
+import { inject, onUnmounted, ref, shallowRef, triggerRef, watch, type Ref, type WatchStopHandle, onMounted, computed } from 'vue';
 import { DASHBOARD_WIDGET_ID } from '../misc/dashboard/DashboardComposable';
 import { useSelectedPart, useWidgetData } from './flightDashboardElemStoreTypes';
 
 import { Chart, type ChartDataset, type DefaultDataPoint, type LegendItem } from 'chart.js'
 import { getFlightAndHistoricVessel } from '@/stores/combinedMethods';
-import { useObservableShallow } from '@/helper/reactivity';
+import { fromImmediate, useObservableShallow } from '@/helper/reactivity';
 import type { Flight } from '@/stores/flight';
 
-import { from } from '@vueuse/rxjs';
-import { debounceTime } from 'rxjs'
+import { from, useObservable } from '@vueuse/rxjs';
+import { combineLatest, debounceTime, distinct, filter, map } from 'rxjs'
 import { toJsType } from '@/helper/datatype_helper';
 
 const rndCharMap = [
@@ -67,34 +67,86 @@ const mounted$ = ref(false)
 
 onMounted(() => mounted$.value = true)
 
+const fetchDebounceTime = computed(() => live.value ? 4000 : 300)
+
 const timeRangeDebounced = shallowRef<TimeRange | undefined>(undefined)
+const timeRangeFetchDebounced = shallowRef(timeRange.value)
 watchDebounced(timeRange, r => { timeRangeDebounced.value = r ? { ...r } : undefined; triggerRef(timeRangeDebounced) }, { immediate: true, deep: true, debounce: 20, maxWait: 100 })
+watchDebounced(timeRange, r => timeRangeFetchDebounced.value = r, { immediate: true, deep: true, debounce: fetchDebounceTime, maxWait: 5000 })
 
 const { flight$ } = getFlightAndHistoricVessel(vesselId, flightId)
 const selectedPartId = useSelectedPart(dashboardWidgetId)
+const partId$ = fromImmediate(selectedPartId)
 
-const { getOrInitStore } = useFlightDataStore()
+const availableSeries$ = combineLatest([partId$, flight$]).pipe(
+  map(([pid, f]) => pid && f ? f.measured_parts[pid] : []),
+);
 
-const data: Ref<FlightDataState | undefined> = shallowRef(undefined)
+const availableSeries = useObservable(availableSeries$)
+
+const { getOrInitStore, fetchFlightDataInTimeFrame } = useFlightDataStore()
+
+
+const data: Ref<Record<string, FlightDataState>> = shallowRef({});
+
+// Watch widget data deep without watching chart$
+const widgetDataDeep = useObservableShallow(from(widgetData, {deep: true, immediate: true}).pipe(debounceTime(100)))
+
+const timeRangeWithoutCur$ = fromImmediate(timeRange, true).pipe(
+    filter(r => !!r),
+    map(r => ({start: r!.start, end: r!.end})),
+    distinct((r) => `${r?.start}-${r?.end}`),
+    debounceTime(500),
+)
+
+watch([flightId, selectedPartId, availableSeries, useObservableShallow(timeRangeWithoutCur$), resolution, live], ([flight, part, s, timeRange, res, l]) => {
+
+    // Only fetch data if not live
+    if(l)
+        return
+
+    if(!part || !s || !timeRange)
+        return
+
+    if(res === 'eternity')
+        return
+
+    for(const seriesDescriptor of s){
+
+        fetchFlightDataInTimeFrame(flight, part, seriesDescriptor.name, timeRange.start, timeRange.end, res)
+    }
+})
 
 let removeOldWatch = undefined as (WatchStopHandle | undefined)
 
-watch([flightId, selectedPartId], ([flight, part]) => {
+watch([flightId, selectedPartId, availableSeries], ([flight, part, s]) => {
 
-    if (!part)
+    if (!part || !s)
         return
 
     if (removeOldWatch)
         removeOldWatch()
 
-    removeOldWatch = watch(getOrInitStore(flight, part), d => { data.value = d; triggerRef(data) }, { immediate: true, deep: false })
+    const addedWatches: (() => void)[] = []
+
+    for(const descriptor of s){
+
+        addedWatches.push(watch(getOrInitStore(flight, part, descriptor.name), d => {
+
+            data.value[descriptor.name] = d;
+            triggerRef(data) 
+
+        }, { immediate: true, deep: false }))
+    }
+    
+    removeOldWatch = () => addedWatches.forEach(w => w());
 
 }, { immediate: true, deep: false })
 
 const chart$ = shallowRef<Chart | undefined>(undefined)
 const prev$ = ref<string[] | undefined>(undefined)
 
-function loadChartData(chart: Chart, flightData: FlightDataState | undefined, range: TimeRange, resolution: AggregationLevels | 'smallest', _: boolean) {
+function loadChartData(chart: Chart, flightData: Record<string, FlightDataState> | undefined, range: TimeRange, resolution: AggregationLevels | 'smallest', _: boolean) {
 
     if (!flightData) {
 
@@ -106,53 +158,53 @@ function loadChartData(chart: Chart, flightData: FlightDataState | undefined, ra
 
     type DataObj<T> = { x: number, y: T }
 
-
-    const curMeasurements = resolution === 'smallest' ?
-        getValues(flightData.measurements, range.start, range.end)
-        : getValues(flightData.measurements, range.start, range.end, true, resolution)
-
     const data = {} as { [seriesName: string]: (DataObj<number>)[] }
 
     const startTimestamp = range.start.getTime()
     const endTimestamp = range.end.getTime()
 
-    for (const r of curMeasurements) {
 
-        const date = r.getDateTime()
+    for (const seriresName of Object.keys(flightData)){
 
-        const curTime = date.getTime()
+        const curData = flightData[seriresName]
 
-        if (!date)
-            continue;
+        const curMeasurements = resolution === 'smallest' ?
+            getValues(curData.measurements, range.start, range.end)
+            : getValues(curData.measurements, range.start, range.end, true, resolution)
 
-        if (curTime < startTimestamp)
-            continue;
 
-        if (curTime > endTimestamp)
-            continue;
+        for (const r of curMeasurements) {
 
-        for (const s of Object.keys(r.measurements_aggregated)) {
-            const value = r.measurements_aggregated[s]
+            const date = r.getDateTime()
+            const curTime = date.getTime()
 
-            const valueActual = value[0] ?? value[2] ?? value[2]
+            if (!date)
+                continue;
 
-            if (!s)
+            if (curTime < startTimestamp)
+                continue;
+
+            if (curTime > endTimestamp)
+                continue;
+
+
+            if (!seriresName)
                 continue
 
-            const minKey = `${s} (min)`
-            const maxKey = `${s} (max)`
+            const minKey = `${seriresName} (min)`
+            const maxKey = `${seriresName} (max)`
 
 
-            if (!data[s]) {
-                data[s] = []
+            if (!data[seriresName]) {
+                data[seriresName] = []
                 data[minKey] = []
                 data[maxKey] = []
             }
 
-            if (typeof valueActual === 'number') {
-                data[s].push({ x: curTime, y: value[0] })
-                data[minKey].push({ x: curTime, y: value[1] })
-                data[maxKey].push({ x: curTime, y: value[2] })
+            if (typeof r.avg === 'number') {
+                data[seriresName].push({ x: curTime, y: r.avg })
+                data[minKey].push({ x: curTime, y: r.min as number })
+                data[maxKey].push({ x: curTime, y: r.max as number })
 
                 continue
             }
@@ -165,6 +217,7 @@ function loadChartData(chart: Chart, flightData: FlightDataState | undefined, ra
             // data[s].push(valueActual)
         }
     }
+    
 
     for(const dataset of chart.data.datasets){
 
@@ -196,8 +249,6 @@ function loadChartData(chart: Chart, flightData: FlightDataState | undefined, ra
     }
 
     chart.update()
-
-
 }
 
 function makeDatasets(flight: Flight, partId: string) {
@@ -339,47 +390,45 @@ watch([useObservableShallow(flight$), selectedPartId, viewport, mounted$], ([fli
 
 }, { immediate: true, deep: false })
 
-watch([data, timeRangeDebounced, resolution, live, chart$], ([flightData, range, resolution, isLive, chart]) => {
+watch([data, widgetDataDeep, timeRangeDebounced, resolution, live, chart$], ([flightData, wd, range, resolution, isLive, chart]) => {
 
-    if (!flightData || !range || !chart)
+    if (!flightData || !range || !chart || !wd)
         return
 
     chart.resize()
 
     loadChartData(chart, flightData, range, resolution, isLive)
 
-
 }, { immediate: true, deep: false })
-
-// Wacht widget data deep without watching chart$
-const widgetDataDeep = useObservableShallow(from(widgetData, {deep: true, immediate: true}).pipe(debounceTime(100)))
 
 watch([widgetDataDeep, chart$], ([wd, chart]) => {
 
     if (!chart || !wd)
         return
 
-    for (const key in wd.graphSeriesSetting) {
-        const settings = wd.graphSeriesSetting[key]
+    // for (const key in wd.graphSeriesSetting) {
+    //     // const settings = wd.graphSeriesSetting[key]
 
-        const seriesIndex = chart.data.datasets.findIndex(d => d.label === key)
-        const minSeriesIndex = seriesIndex - 1
-        const maxSeriesIndex = seriesIndex + 1
+    //     // const seriesIndex = chart.data.datasets.findIndex(d => d.label === key)
+    //     // const minSeriesIndex = seriesIndex - 1
+    //     // const maxSeriesIndex = seriesIndex + 1
 
-        if (settings.enabled)
-            chart.show(seriesIndex)
-        else
-            chart.hide(seriesIndex)
+    //     // return
 
-        if (settings.enabled && settings.minMaxEnabled) {
-            chart.show(minSeriesIndex)
-            chart.show(maxSeriesIndex)
-        }
-        else {
-            chart.hide(minSeriesIndex)
-            chart.hide(minSeriesIndex)
-        }
-    }
+    //     // if (settings.enabled)
+    //     //     chart.show(seriesIndex)
+    //     // else
+    //     //     chart.hide(seriesIndex)
+
+    //     // if (settings.enabled && settings.minMaxEnabled) {
+    //     //     chart.show(minSeriesIndex)
+    //     //     chart.show(maxSeriesIndex)
+    //     // }
+    //     // else {
+    //     //     chart.hide(minSeriesIndex)
+    //     //     chart.hide(minSeriesIndex)
+    //     // }
+    // }
 
     chart.update()
 

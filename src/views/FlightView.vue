@@ -25,15 +25,20 @@
                 <CommandHistory></CommandHistory>
             </div>
             <div>
-                <CommandDispatchBar :vessel-id="vessel_id" :flight-id="id" v-model:command-type="commandDispatchCommandType"
+                <CommandDispatch :vessel-id="vessel_id" :flight-id="id" v-model:command-type="commandDispatchCommandType"
+                v-model:part-id="commandDispatchPartId"></CommandDispatch>
+                <!-- <CommandDispatchBar :vessel-id="vessel_id" :flight-id="id" v-model:command-type="commandDispatchCommandType"
                     v-model:part-id="commandDispatchPartId">
                     <CommandDispatchButton :command-type="commandDispatchCommandType" :part="commandDispatchPartId">
                     </CommandDispatchButton>
-                </CommandDispatchBar>
+                </CommandDispatchBar> -->
             </div>
         </div>
 
         <DashboardSaver v-if="extraView === 'dashboard'" v-model="dashboardId"></DashboardSaver>
+
+        <Log v-if="extraView === 'log'"></Log>
+
         <AdvancedDatetimeSelector v-if="startTime && endTime" :start-date="startTime" :end-date="endTime"
             @current-date="currentDate = $event" @range-min-date="rangeMinDate = $event"
             @range-max-date="rangeMaxDate = $event" @live="$event => live = $event">
@@ -72,6 +77,13 @@
                     <template v-slot:activator="{ props }">
                         <v-btn v-bind="props" :ripple="false" icon="mdi-console-line" variant="plain"
                             @click="extraView = extraView == 'command' ? undefined : 'command'"></v-btn>
+                    </template>
+                </v-tooltip>
+
+                <v-tooltip text="Log" location="top">
+                    <template v-slot:activator="{ props }">
+                        <v-btn v-bind="props" :ripple="false" icon="mdi-text" variant="plain"
+                            @click="extraView = extraView == 'log' ? undefined : 'log'"></v-btn>
                     </template>
                 </v-tooltip>
             </template>
@@ -139,11 +151,11 @@
 import ElementSettings from '@/components/FlightDashboardElem/ElementSettings.vue';
 import VesselComponentDashboardElem from '@/components/FlightDashboardElem/VesselComponentDashboardElem.vue';
 import DashboardSaver from '@/components/misc/dashboard/DashboardSaver.vue';
-import CommandDispatchBar from '@/components/command/CommandDispatchBar.vue';
+import CommandDispatch from '@/components/command/CommandDispatch.vue';
 import CommandDispatchButton from '@/components/command/CommandDispatchButton.vue';
 import AdvancedDatetimeSelector from '@/components/misc/advanced-datetime-selector/AdvancedDatetimeSelector.vue';
 import CommandHistory from '@/components/command/CommandHistory.vue'
-
+import Log from '@/components/flight_data/Log.vue';
 import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useDashboardPersistStore } from '@/components/misc/dashboard/DashboardComposable';
@@ -151,7 +163,7 @@ import WidgetDashboard from '@/components/misc/dashboard/WidgedDashboard.vue';
 import { useFlightViewState, useProvideFlightView, type TimeRange } from '@/composables/useFlightView';
 import type { AggregationLevels } from '@/helper/timeTree';
 import { useCommandStore } from '@/stores/commands';
-import { fetchFlightsForVesselIfNecessary, getFlight, subscribeRealtime as subscribeRealtimeFlight } from '@/stores/flight';
+import { fetchFlightsForVesselIfNecessary, getFlight} from '@/stores/flight';
 import { v4 } from 'uuid';
 
 import { useObservableShallow } from '@/helper/reactivity';
@@ -170,7 +182,7 @@ const { availableDashboards, loadDashboardIndicesFromStorage } = useDashboardPer
 loadDashboardIndicesFromStorage()
 const dashboardId = ref<string>(availableDashboards.value.length > 0 ? (availableDashboards.value.find(v => v.isDefault)?.id ?? availableDashboards.value[0].id) : v4())
 
-const extraView = ref<undefined | 'command' | 'dashboard'>()
+const extraView = ref<undefined | 'command' | 'dashboard' | 'log'>()
 
 const live = ref(false)
 
@@ -192,7 +204,7 @@ const { setTimeRange, setFlightId, setVesselId, setLive, setResolution, elementI
 
 const { resolution, timeRange } = useFlightViewState()
 
-const { subscribeRealtime: subscribeRealtimeCommands, fetchCommandsInTimeFrame } = useCommandStore()
+const { fetchCommandsInTimeFrame } = useCommandStore()
 const { subscribeRealtime: subscribeRealtimeFlightData } = useFlightDataStore()
 
 
@@ -251,9 +263,12 @@ watch(timeRange, r => {
 
 }, { immediate: true, deep: true })
 
-subscribeRealtimeFlight()
-subscribeRealtimeFlightData(id)
-subscribeRealtimeCommands(id)
+watch(flight, f => {
+    if(!f)
+        return
+
+    subscribeRealtimeFlightData(f)
+}, { immediate: true, deep: true })
 
 flight$.pipe(filter(f => !!f)).subscribe(f => fetchHistoricVessel(f!._vessel_id, f!._vessel_version))
 

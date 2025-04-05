@@ -1,4 +1,4 @@
-import { fetchRssApi, useRssWebSocket } from '@/composables/api/rssFlightServerApi';
+import { fetchRssApi } from '@/composables/api/rssFlightServerApi';
 import type { LoadingStates } from '@/helper/loadingStates';
 import { ETERNITY, getMissingRangesRecursive, insertValue, type TimeTreeData, type TimeTreeNode } from '@/helper/timeTree';
 import { until } from '@vueuse/core';
@@ -151,106 +151,106 @@ function dispatchCommand(flightId: string, cmd: Command){
     return req.post([cmd], 'json')
 }
     
-async function subscribeRealtime(flightId: string){
+// async function subscribeRealtime(flightId: string){
 
-    if(store.realtimeSubscription.value)
-        return
+//     if(store.realtimeSubscription.value)
+//         return
     
-    store.realtimeSubscription.value = true
+//     store.realtimeSubscription.value = true
 
-    const ws$ = useRssWebSocket()
+//     const ws$ = useRssWebSocket()
 
-    watch(ws$, ws => {
+//     watch(ws$, ws => {
         
-        if(!ws)
-            return
+//         if(!ws)
+//             return
 
-        ws.on('command.new', (data: wsCommandNewMsg) => {
+//         ws.on('command.new', (data: wsCommandNewMsg) => {
 
-            const allCommandData = getOrInitStore(data.flight_id, ALL_STORE_PLACEHOLDER, ALL_STORE_PLACEHOLDER)
-            const allLastCommandData = getOrInitLastCommand(data.flight_id, ALL_STORE_PLACEHOLDER, ALL_STORE_PLACEHOLDER)
+//             const allCommandData = getOrInitStore(data.flight_id, ALL_STORE_PLACEHOLDER, ALL_STORE_PLACEHOLDER)
+//             const allLastCommandData = getOrInitLastCommand(data.flight_id, ALL_STORE_PLACEHOLDER, ALL_STORE_PLACEHOLDER)
 
-            data.commands.forEach(cmd => {
+//             data.commands.forEach(cmd => {
 
-                const thisCommandData = getOrInitStore(data.flight_id, cmd._part_id, cmd._command_type)
-                const allPartsCommandData = getOrInitStore(data.flight_id, ALL_STORE_PLACEHOLDER, cmd._command_type)
-                const allTypesCommandData = getOrInitStore(data.flight_id, cmd._part_id, ALL_STORE_PLACEHOLDER)
+//                 const thisCommandData = getOrInitStore(data.flight_id, cmd._part_id, cmd._command_type)
+//                 const allPartsCommandData = getOrInitStore(data.flight_id, ALL_STORE_PLACEHOLDER, cmd._command_type)
+//                 const allTypesCommandData = getOrInitStore(data.flight_id, cmd._part_id, ALL_STORE_PLACEHOLDER)
 
-                const thisLastCommandData = getOrInitLastCommand(data.flight_id, cmd._part_id, cmd._command_type)
-                const allPartsLastCommandData = getOrInitLastCommand(data.flight_id, ALL_STORE_PLACEHOLDER, cmd._command_type)
-                const allTypesLastCommandData = getOrInitLastCommand(data.flight_id, cmd._part_id, ALL_STORE_PLACEHOLDER)
+//                 const thisLastCommandData = getOrInitLastCommand(data.flight_id, cmd._part_id, cmd._command_type)
+//                 const allPartsLastCommandData = getOrInitLastCommand(data.flight_id, ALL_STORE_PLACEHOLDER, cmd._command_type)
+//                 const allTypesLastCommandData = getOrInitLastCommand(data.flight_id, cmd._part_id, ALL_STORE_PLACEHOLDER)
 
-                const asTimeData: Command & TimeTreeData = {
-                    ...cmd,
-                    getDateTime(){ return typeof this.create_time === 'string' ? new Date(this.create_time) : this.create_time}
-                }
+//                 const asTimeData: Command & TimeTreeData = {
+//                     ...cmd,
+//                     getDateTime(){ return typeof this.create_time === 'string' ? new Date(this.create_time) : this.create_time}
+//                 }
 
-                insertValue(thisCommandData.value.commands, asTimeData)
-                insertValue(allPartsCommandData.value.commands, asTimeData)
-                insertValue(allTypesCommandData.value.commands, asTimeData)
-                insertValue(allCommandData.value.commands, asTimeData)
+//                 insertValue(thisCommandData.value.commands, asTimeData)
+//                 insertValue(allPartsCommandData.value.commands, asTimeData)
+//                 insertValue(allTypesCommandData.value.commands, asTimeData)
+//                 insertValue(allCommandData.value.commands, asTimeData)
 
-                integrateLastCommand(allLastCommandData, toCommandAndDate(asTimeData))
-                integrateLastCommand(thisLastCommandData, toCommandAndDate(asTimeData))
-                integrateLastCommand(allPartsLastCommandData, toCommandAndDate(asTimeData))
-                integrateLastCommand(allTypesLastCommandData, toCommandAndDate(asTimeData))
+//                 integrateLastCommand(allLastCommandData, toCommandAndDate(asTimeData))
+//                 integrateLastCommand(thisLastCommandData, toCommandAndDate(asTimeData))
+//                 integrateLastCommand(allPartsLastCommandData, toCommandAndDate(asTimeData))
+//                 integrateLastCommand(allTypesLastCommandData, toCommandAndDate(asTimeData))
 
-                triggerRef(thisCommandData)
-                triggerRef(allPartsCommandData)
-                triggerRef(allTypesCommandData)
-                triggerRef(allCommandData)
+//                 triggerRef(thisCommandData)
+//                 triggerRef(allPartsCommandData)
+//                 triggerRef(allTypesCommandData)
+//                 triggerRef(allCommandData)
 
-            });
-        })
+//             });
+//         })
 
-        ws.on('command.update', (data: wsCommandUpdateMsg) => {
+//         ws.on('command.update', (data: wsCommandUpdateMsg) => {
 
-            const allCommandData = getOrInitStore(data.flight_id, ALL_STORE_PLACEHOLDER, ALL_STORE_PLACEHOLDER)
-            const allLastCommandData = getOrInitLastCommand(data.flight_id, ALL_STORE_PLACEHOLDER, ALL_STORE_PLACEHOLDER)
+//             const allCommandData = getOrInitStore(data.flight_id, ALL_STORE_PLACEHOLDER, ALL_STORE_PLACEHOLDER)
+//             const allLastCommandData = getOrInitLastCommand(data.flight_id, ALL_STORE_PLACEHOLDER, ALL_STORE_PLACEHOLDER)
 
-            for(const cmd of data.commands){
+//             for(const cmd of data.commands){
 
-                const thisCommandData = getOrInitStore(data.flight_id, cmd._part_id, cmd._command_type)
-                const allPartsCommandData = getOrInitStore(data.flight_id, ALL_STORE_PLACEHOLDER, cmd._command_type)
-                const allTypesCommandData = getOrInitStore(data.flight_id, cmd._part_id, ALL_STORE_PLACEHOLDER)
+//                 const thisCommandData = getOrInitStore(data.flight_id, cmd._part_id, cmd._command_type)
+//                 const allPartsCommandData = getOrInitStore(data.flight_id, ALL_STORE_PLACEHOLDER, cmd._command_type)
+//                 const allTypesCommandData = getOrInitStore(data.flight_id, cmd._part_id, ALL_STORE_PLACEHOLDER)
 
-                const thisLastCommandData = getOrInitLastCommand(data.flight_id, cmd._part_id, cmd._command_type)
-                const allPartsLastCommandData = getOrInitLastCommand(data.flight_id, ALL_STORE_PLACEHOLDER, cmd._command_type)
-                const allTypesLastCommandData = getOrInitLastCommand(data.flight_id, cmd._part_id, ALL_STORE_PLACEHOLDER)
+//                 const thisLastCommandData = getOrInitLastCommand(data.flight_id, cmd._part_id, cmd._command_type)
+//                 const allPartsLastCommandData = getOrInitLastCommand(data.flight_id, ALL_STORE_PLACEHOLDER, cmd._command_type)
+//                 const allTypesLastCommandData = getOrInitLastCommand(data.flight_id, cmd._part_id, ALL_STORE_PLACEHOLDER)
     
-                const asTimeData: Command & TimeTreeData = {
-                    ...cmd,
-                    getDateTime(){ return typeof this.create_time === 'string' ? new Date(this.create_time) : this.create_time}
-                }
+//                 const asTimeData: Command & TimeTreeData = {
+//                     ...cmd,
+//                     getDateTime(){ return typeof this.create_time === 'string' ? new Date(this.create_time) : this.create_time}
+//                 }
 
-                insertValue(thisCommandData.value.commands, asTimeData)
-                insertValue(allPartsCommandData.value.commands, asTimeData)
-                insertValue(allTypesCommandData.value.commands, asTimeData)
-                insertValue(allCommandData.value.commands, asTimeData)
+//                 insertValue(thisCommandData.value.commands, asTimeData)
+//                 insertValue(allPartsCommandData.value.commands, asTimeData)
+//                 insertValue(allTypesCommandData.value.commands, asTimeData)
+//                 insertValue(allCommandData.value.commands, asTimeData)
 
-                integrateLastCommand(allLastCommandData, toCommandAndDate(asTimeData))
-                integrateLastCommand(thisLastCommandData, toCommandAndDate(asTimeData))
-                integrateLastCommand(allPartsLastCommandData, toCommandAndDate(asTimeData))
-                integrateLastCommand(allTypesLastCommandData, toCommandAndDate(asTimeData))
+//                 integrateLastCommand(allLastCommandData, toCommandAndDate(asTimeData))
+//                 integrateLastCommand(thisLastCommandData, toCommandAndDate(asTimeData))
+//                 integrateLastCommand(allPartsLastCommandData, toCommandAndDate(asTimeData))
+//                 integrateLastCommand(allTypesLastCommandData, toCommandAndDate(asTimeData))
 
-                triggerRef(thisCommandData)
-                triggerRef(allPartsCommandData)
-                triggerRef(allTypesCommandData)
-                triggerRef(allCommandData)
-            }
+//                 triggerRef(thisCommandData)
+//                 triggerRef(allPartsCommandData)
+//                 triggerRef(allTypesCommandData)
+//                 triggerRef(allCommandData)
+//             }
 
-        })
+//         })
 
-        ws.on('connect', () => {
-            ws.emit('command.subscribe_as_client', flightId)
-        })
+//         ws.on('connect', () => {
+//             ws.emit('command.subscribe_as_client', flightId)
+//         })
 
-        ws.emit('command.subscribe_as_client', flightId)
+//         ws.emit('command.subscribe_as_client', flightId)
             
 
-    }, {immediate: true})
+//     }, {immediate: true})
     
-}
+// }
 
 function integrateData(newData: Command[], store: CommandState) {
 
@@ -290,7 +290,7 @@ function getAllForFlight(flight_id: string){
 export function useCommandStore(){
 
 
-    return {store, fetchCommandsInTimeFrame, dispatchCommand, subscribeRealtime, getAllForFlight, getOrInitStore, getOrInitLastCommand}
+    return {store, fetchCommandsInTimeFrame, dispatchCommand, getAllForFlight, getOrInitStore, getOrInitLastCommand}
 }
 
 type wsCommandNewMsg = {

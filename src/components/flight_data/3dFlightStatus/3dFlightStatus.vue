@@ -27,16 +27,18 @@ import { inject, ref } from 'vue'
 import { DASHBOARD_WIDGET_ID } from '../../misc/dashboard/DashboardComposable';
 import { useWidgetData, useSelectedPart } from '../flightDashboardElemStoreTypes';
 import { useFlightViewState } from '@/composables/useFlightView';
-import { useFlightDataStore } from '@/stores/flight_data';
+import { useFlightDataStore, type NumericalTypes } from '@/stores/flight_data';
 import { getClosest } from '@/helper/timeTree'
 import { fromImmediate, useObservableShallow } from '@/helper/reactivity'
 import { getFlightAndHistoricVessel } from '@/stores/combinedMethods';
-import { combineLatest, map, of, switchMap, throttleTime } from 'rxjs';
+import { combineLatest, debounceTime, distinct, filter, map, of, switchMap, tap, throttleTime } from 'rxjs';
 import { getPart } from '@/stores/vessels';
 
 import * as THREE from 'three';
 import { useElementSize } from '@vueuse/core';
 import { watch } from 'vue';
+
+const FETCH_LEADTIME = 60_000;
 
 const viewport = ref<HTMLElement>()
 
@@ -46,7 +48,7 @@ const dashboardWidgetId = inject(DASHBOARD_WIDGET_ID)
 if (!dashboardWidgetId)
     throw new Error('Flight Status not used in within a dashboard')
 
-const { vesselId, flightId, timeRange, resolution } = useFlightViewState()
+const { vesselId, flightId, timeRange, resolution, live } = useFlightViewState()
 
 const widgetData = useWidgetData(dashboardWidgetId!)
 
@@ -55,39 +57,61 @@ if (!widgetData.value.selectedSeriesMulti)
 
 const throttledTimeRange$ = fromImmediate(timeRange, true).pipe(throttleTime(20))
 
+const timeRangeWithoutCur$ = fromImmediate(timeRange, true).pipe(
+    filter(r => !!r),
+    map(r => ({start: r!.start, end: r!.end})),
+    distinct((r) => `${r?.start}-${r?.end}`),
+    debounceTime(500),
+)
+
 const { vessel$ } = getFlightAndHistoricVessel(vesselId, flightId)
 
 const selectedPartId = useSelectedPart(dashboardWidgetId)
 const selectedPart$ = getPart(vessel$, selectedPartId)
 
-const series$ = fromImmediate(widgetData).pipe(
-    map(d => ({
-        orientationW: d.selectedSeriesMulti['orientation-w'],
-        orientationX: d.selectedSeriesMulti['orientation-x'],
-        orientationY: d.selectedSeriesMulti['orientation-y'], 
-        orientationZ: d.selectedSeriesMulti['orientation-z'],
-    }))
-)
 
-const { getOrInitStore } = useFlightDataStore()
+const { getOrInitStore, fetchFlightDataInTimeFrame } = useFlightDataStore()
 
-const flightData$ = combineLatest([selectedPart$, fromImmediate(flightId)]).pipe(
-    switchMap(([part, flightId]) => part && flightId ? fromImmediate(getOrInitStore(flightId, part._id)) : of(undefined))
+const flightData$ = combineLatest([selectedPart$, fromImmediate(flightId), fromImmediate(widgetData, true)]).pipe(
+    switchMap(([part, flightId, wd]) =>
+        part && flightId ?
+            combineLatest([
+                fromImmediate(getOrInitStore(flightId, part._id, wd.selectedSeriesMulti['orientation']), true),
+            ])
+            : of(undefined))
 )
 
 const res$ = fromImmediate(resolution).pipe(map(r => r === 'smallest' ? undefined : r))
 
+watch([flightId, selectedPartId, widgetData, useObservableShallow(timeRangeWithoutCur$), resolution, live], ([flight, part, wd, timeRange, res, l]) => {
+
+    // Only fetch data if not live
+    if(l)
+        return
+
+    if(!part || !wd || !timeRange)
+        return
+
+    if(res === 'eternity')
+        return
+
+    console.log('Fetched flight data')
+
+    fetchFlightDataInTimeFrame(flight, part, wd.selectedSeriesMulti['orientation'], timeRange.start, timeRange.end, res)
+    
+})
+
 const measurement$ = combineLatest([flightData$, throttledTimeRange$, res$]).pipe(
-    map(([store, range, r]) => store && range ? getClosest(store.measurements, range.cur, r) : undefined)
+    map(([store, range, r]) => store && range ? store.map(s => getClosest(s.measurements, range.cur, r)) : undefined)
 )
 
-const values$ = combineLatest([measurement$, series$]).pipe(
-    map(([measurement, series]) => ({
-        orientationW: series.orientationW ? measurement?.measurements_aggregated[series.orientationW]?.[0] : undefined,
-        orientationX: series.orientationX ? measurement?.measurements_aggregated[series.orientationX]?.[0] : undefined,
-        orientationY: series.orientationY ? measurement?.measurements_aggregated[series.orientationY]?.[0] : undefined,
-        orientationZ: series.orientationZ ? measurement?.measurements_aggregated[series.orientationZ]?.[0] : undefined,
-    }))
+const values$ = measurement$.pipe(
+    map((measurement) => ({
+        orientationW: measurement ? (measurement[0]?.last?.[1] as NumericalTypes[])?.[3] as number : undefined,
+        orientationX: measurement ? (measurement[0]?.last?.[1] as NumericalTypes[])?.[0] as number : undefined,
+        orientationY: measurement ? (measurement[0]?.last?.[1] as NumericalTypes[])?.[1] as number : undefined,
+        orientationZ: measurement ? (measurement[0]?.last?.[1] as NumericalTypes[])?.[2] as number : undefined,
+    })),
 )
 
 const quat$ = values$.pipe(

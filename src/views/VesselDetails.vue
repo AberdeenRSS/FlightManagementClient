@@ -104,7 +104,6 @@
 import { ref, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { fetchVesselsIfNecessary, getVessel } from '@/stores/vessels';
-import { subscribeRealtime } from '@/stores/flight';
 import { useObservableShallow } from '@/helper/reactivity';
 import { useUser } from '@/composables/auth/useUser';
 import axios from 'axios';
@@ -125,7 +124,6 @@ const tokenLoading = ref<boolean>(false)
 const copySuccess = ref<boolean>(false)
 
 fetchVesselsIfNecessary()
-subscribeRealtime()
 
 const vessel = useObservableShallow(getVessel(id))
 console.log(vessel)

@@ -1,22 +1,20 @@
 <template>
-    <div :draggable="true" @dragstart="startDrag" class="widget-container"
-        :style="`width: ${tileSize * sizeX}vw; height: ${tileSize * sizeY}vw;`">
+    <div :draggable="true" @dragstart="startDrag" @dragend="endDrag"  class="widget-container"
+        :style="`width: ${size[0]}vw; height: ${size[1]}vw;`">
         <span ref="slotContent">
             <slot></slot>
         </span>
         <!-- <div class="resizer resizer-left" ></div>
         <div class="resizer resizer-top"></div> -->
-        <div class="resizer resizer-right" :draggable="true" @dragend="onResizeEnd"
-            @dragstart="$event => onResizeStart($event, 'right')"></div>
-        <div class="resizer resizer-bottom" :draggable="true" @dragend="onResizeEnd"
-            @dragstart="$event => onResizeStart($event, 'bottom')"></div>
-
+        <div class="resizer" :draggable="true" @touchstart="onResizeStart($event)" @touchend="onResizeEnd" @dragend="onResizeEnd" @dragstart="$event => onResizeStart($event)">
+            <v-icon icon="mdi-resize-bottom-right" size="x-large"></v-icon>
+        </div>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { computed, provide, ref, toRefs, watch, type Ref, type VNode, type VNodeRef, type WatchStopHandle } from 'vue';
-import { DASHBOARD_ID, DASHBOARD_WIDGET_ID, useDashboardWidgetStore, type ResizeInfo } from './DashboardComposable';
+import { computed, provide, ref, toRefs, watch, type VNode, type VNodeRef, type WatchStopHandle } from 'vue';
+import { DASHBOARD_ID, DASHBOARD_WIDGET_ID, useDashboardWidgetStore } from './DashboardComposable';
 
 const slotContent = ref<VNodeRef | null>(null)
 
@@ -64,7 +62,9 @@ const { gridColumns, gridMargin, id, dashboardId } = toRefs(props)
 provide(DASHBOARD_ID, dashboardId.value)
 provide(DASHBOARD_WIDGET_ID, [dashboardId.value, id.value])
 
-const { canResize, resizeWidget } = useDashboardWidgetStore([dashboardId.value, id.value])
+const {  resizeWidget } = useDashboardWidgetStore([dashboardId.value, id.value])
+
+const dragged = ref(false)
 
 const requestSizeX = ref(1)
 const requestSizeY = ref(1)
@@ -74,6 +74,16 @@ const tileSize = computed(() => (100 - (gridMargin.value * 2)) / gridColumns.val
 
 const tileSizePx = computed(() => tileSize.value * window.innerWidth / 100)
 
+const currentlyResizing = ref(false)
+const resizeDistanceVW = ref([0, 0])
+const resizeDistance = ref([0, 0])
+
+const size = computed(() => 
+    currentlyResizing.value
+    ? [(tileSize.value * props.sizeX) + resizeDistanceVW.value[0], (tileSize.value * props.sizeY) + resizeDistanceVW.value[1]]
+    : [tileSize.value * props.sizeX, tileSize.value * props.sizeY]
+)
+
 /**
  * When the component gets dragged the id
  * needs to be set on the data transfer,
@@ -82,6 +92,9 @@ const tileSizePx = computed(() => tileSize.value * window.innerWidth / 100)
  * @param evt The original drag event
  */
 function startDrag(evt: DragEvent) {
+
+    dragged.value = true
+
     evt.dataTransfer!.dropEffect = 'move';
     evt.dataTransfer!.effectAllowed = 'move';
 
@@ -91,74 +104,117 @@ function startDrag(evt: DragEvent) {
 }
 
 
-let windowEvent: ((event$: DragEvent) => void) | undefined = undefined;
+function endDrag(_evt: DragEvent){
+    dragged.value = false
+}
 
-function onDrag($event: DragEvent, resizeStartPosition: [number, number], direction: 'right' | 'bottom', resizeInfo: Ref<ResizeInfo>){
+let windowEvent: ((event$: DragEvent | TouchEvent) => void) | undefined = undefined;
+
+function onDrag($event: DragEvent | TouchEvent, resizeStartPosition: [number, number]){
+
+    $event.stopPropagation()
+
 
     if (!resizeStartPosition)
         return
 
-    const distance = [$event.pageX - resizeStartPosition[0], $event.pageY - resizeStartPosition[1]]
+    let x, y = 0
+
+    if(($event as DragEvent).pageX)
+    {
+        x = ($event as DragEvent).pageX
+        y = ($event as DragEvent).pageY
+    }
+    else{
+        x = ($event as TouchEvent).touches[0].pageX
+        y = ($event as TouchEvent).touches[0].pageY
+    }    
+
+    const distance = [x - resizeStartPosition[0], y - resizeStartPosition[1]]
+    resizeDistance.value = distance
+
+    resizeDistanceVW.value = [100*distance[0]/window.innerWidth, 100*distance[1]/window.innerWidth]
+
+}
+
+function onResizeStart($event: DragEvent | TouchEvent) {
+    $event.stopPropagation()
+
+    let x = 0
+    let y = 0
+
+    if(($event as DragEvent).pageX)
+    {
+        x = ($event as DragEvent).pageX
+        y = ($event as DragEvent).pageY
+
+        if(windowEvent)
+            window.removeEventListener('dragover', windowEvent)
+
+        windowEvent = ($event: DragEvent | TouchEvent) => onDrag($event, startPos)
+        window.addEventListener('dragover', windowEvent)
+    }
+    else{
+        x = ($event as TouchEvent).touches[0].pageX
+        y = ($event as TouchEvent).touches[0].pageY
+
+        if(windowEvent)
+            window.removeEventListener('dragover', windowEvent)
+
+        windowEvent = ($event: DragEvent | TouchEvent) => onDrag($event, startPos)
+        window.addEventListener('touchmove', windowEvent)
+    }
+
+    // // Create an empty or transparent image
+    // const img = new Image();
+    // // img.src = '';
+    
+    // // Set the drag image to the transparent image
+    // $event.dataTransfer?.setDragImage(img, 0, 0);
+
+    currentlyResizing.value = true
+    resizeDistance.value = [0, 0]
+    resizeDistanceVW.value = [0, 0]
+
+    const startPos: [number, number] = [x, y]
+    
+
+}
+
+function onResizeEnd(_$event: DragEvent | TouchEvent) {
+
+    const distance = resizeDistance.value
 
     const halfTile = tileSizePx.value / 2
 
-    // Check if the user dragged the element more than half
-    // a tile size into either direction.
-    // If so try resizing
-    if (direction == 'right' && distance[0] > halfTile) {
+    while(Math.abs(distance[0]) > halfTile || Math.abs(distance[1]) > halfTile){
 
-        if (!resizeInfo.value.enlargeHorizontal)
-            return
+        // Check if the user dragged the element more than half
+        // a tile size into either direction.
+        // If so try resizing
+        if (distance[0] > halfTile) {
+            resizeWidget('enlargeHorizontal')
+            distance[0] -= tileSizePx.value
+        }
 
-        resizeStartPosition[0] = $event.pageX + halfTile
-        resizeStartPosition[1] = $event.pageY 
-        resizeWidget('enlargeHorizontal')
+        if (distance[0] < -halfTile) {
+            resizeWidget('shrinkHorizontal')
+            distance[0] += tileSizePx.value
+        }
+
+        if (distance[1] > halfTile) {
+            resizeWidget('enlargeVertical')
+            distance[1] -= tileSizePx.value
+        }
+
+        if (distance[1] < -halfTile) {
+            resizeWidget('shrinkVertical')
+            distance[1] += tileSizePx.value
+        }
     }
 
-    if (direction == 'right' && distance[0] < -halfTile) {
 
-        if (!resizeInfo.value.shrinkHorizontal)
-            return
-
-        resizeStartPosition[0] = $event.pageX - halfTile
-        resizeStartPosition[1] = $event.pageY
-        resizeWidget('shrinkHorizontal')
-    }
-
-    if (direction == 'bottom' && distance[1] > halfTile) {
-
-        if (!resizeInfo.value.enlargeVertical)
-            return
-
-        resizeStartPosition[0] = $event.pageX
-        resizeStartPosition[1] = $event.pageY + halfTile
-        resizeWidget('enlargeVertical')
-    }
-
-    if (direction == 'bottom' && distance[1] < -halfTile) {
-
-        if (!resizeInfo.value.shrinkVertical)
-            return
-
-        resizeStartPosition[0] = $event.pageX
-        resizeStartPosition[1] = $event.pageY - halfTile
-        resizeWidget('shrinkVertical')
-    }
-
-}
-
-function onResizeStart($event: DragEvent, direction: 'right' | 'bottom') {
-    $event.stopPropagation()
-    const startPos: [number, number] = [$event.pageX, $event.pageY]
-    
-    if(windowEvent)
-        window.removeEventListener('dragover', windowEvent)
-
-    windowEvent = ($event: DragEvent) => onDrag($event, startPos, direction, canResize)
-    window.addEventListener('dragover', windowEvent)
-}
-
-function onResizeEnd(_$event: DragEvent) {
+    currentlyResizing.value = false
 
     if(windowEvent)
         window.removeEventListener('dragover', windowEvent)
@@ -200,49 +256,15 @@ $drag-elem-width: 10px;
 
 .resizer {
 
-    &:hover{
-
-        background-color: black;
-    }
+    touch-action: none;
 
     position: absolute;
-}
 
-.resizer-right {
-    height: 100%;
-    width: $drag-elem-width;
-    top: 0;
+    bottom: 0;
     right: 0;
 
     cursor: col-resize;
 
 }
 
-.resizer-left {
-    height: 100%;
-    width: $drag-elem-width;
-    top: 0;
-    left: 0;
-
-    cursor: col-resize;
-
-}
-
-.resizer-top {
-    height: $drag-elem-width;
-    width: 100%;
-    top: 0;
-    left: 0;
-
-    cursor: row-resize;
-
-}
-
-.resizer-bottom {
-    height: $drag-elem-width;
-    width: 100%;
-    bottom: 0;
-    left: 0;
-
-    cursor: row-resize;
-}</style>
+</style>

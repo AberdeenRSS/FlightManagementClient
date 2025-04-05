@@ -1,4 +1,4 @@
-import { fetchRssApi, useRssWebSocket } from '@/composables/api/rssFlightServerApi';
+import { fetchRssApi } from '@/composables/api/rssFlightServerApi';
 import { asObservable, fromImmediate } from '@/helper/reactivity';
 import { until } from '@vueuse/core';
 import { combineLatest, map, of, shareReplay, switchMap, type Observable } from 'rxjs';
@@ -65,60 +65,60 @@ export async function fetchFlightsForVesselIfNecessary(vesselId: string) {
 
     triggerRef(storeObj)
 }
-export async function subscribeRealtime() {
+// export async function subscribeRealtime() {
 
-    if (state.realtimeSubscription.value)
-        return
+//     if (state.realtimeSubscription.value)
+//         return
 
-    state.realtimeSubscription.value = true
+//     state.realtimeSubscription.value = true
 
-    const ws$ = useRssWebSocket()
+//     const ws$ = useRssWebSocket()
 
-    watch(ws$, ws => {
+//     watch(ws$, ws => {
 
-        if (!ws)
-            return
+//         if (!ws)
+//             return
 
-        ws.on('flights.new', (data: Flight) => {
+//         ws.on('flights.new', (data: Flight) => {
 
-            const vesselFlights = getOrInitStore(data._vessel_id)
+//             const vesselFlights = getOrInitStore(data._vessel_id)
 
-            vesselFlights.value.flights[data._id] = { flight: shallowRef(data), loading: ref('LOADED') }
+//             vesselFlights.value.flights[data._id] = { flight: shallowRef(data), loading: ref('LOADED') }
 
-            triggerRef(vesselFlights)
+//             triggerRef(vesselFlights)
 
-        })
+//         })
 
-        ws.on('flights.update', (data: Flight) => {
+//         ws.on('flights.update', (data: Flight) => {
 
-            const vesselFlights = getOrInitStore(data._vessel_id)
+//             const vesselFlights = getOrInitStore(data._vessel_id)
 
-            if(!vesselFlights.value.flights[data._id]){
-                vesselFlights.value.flights[data._id] = { flight: shallowRef(data), loading: ref('LOADED') }
-                return
-            }
+//             if(!vesselFlights.value.flights[data._id]){
+//                 vesselFlights.value.flights[data._id] = { flight: shallowRef(data), loading: ref('LOADED') }
+//                 return
+//             }
 
-            const flightState = vesselFlights.value.flights[data._id]
+//             const flightState = vesselFlights.value.flights[data._id]
             
-            flightState.flight.value = data
+//             flightState.flight.value = data
 
-            flightState.loading.value = 'LOADED'
+//             flightState.loading.value = 'LOADED'
 
-            triggerRef(flightState.flight)
+//             triggerRef(flightState.flight)
 
-        })
+//         })
 
-        ws.on('connect', () => {
-            ws.emit('flights.subscribe')
+//         ws.on('connect', () => {
+//             ws.emit('flights.subscribe')
 
-        })
+//         })
 
-        ws.emit('flights.subscribe')
+//         ws.emit('flights.subscribe')
 
 
-    }, { immediate: true })
+//     }, { immediate: true })
 
-}
+// }
 
 export type LoadingStates =
     'NOT_REQUESTED'
@@ -128,13 +128,9 @@ export type LoadingStates =
 
 export type CommandInfo = {
 
-    supported_on_vehicle_level: boolean
+    name: string
 
-    supporting_parts: string[]
-
-    payload_schema: unknown;
-
-    response_schema: unknown
+    payload_schema: undefined | string | [string, string][]
 }
 
 export type Flight = {
@@ -144,8 +140,8 @@ export type Flight = {
     name: string;
     start: string;
     end: string | undefined;
-    available_commands: { [commandType: string]: CommandInfo }
-    measured_parts: { [part_id: string]: { name: string, type: string }[] }
+    available_commands: { [commandType: string]: CommandInfo[] }
+    measured_parts: { [part_id: string]: ({ name: string, type: string | [string, string][] })[] }
 }
 
 type FlightState = {

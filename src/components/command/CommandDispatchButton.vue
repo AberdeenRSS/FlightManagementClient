@@ -54,8 +54,7 @@ let commandAvailable$: Observable<boolean>;
 if(part && commandType){
 
     commandAvailable$ = combineLatest([flight$, fromImmediate(part), fromImmediate(commandType)]).pipe(
-        map(([f, partId, t]) => t ? f?.available_commands[t].supporting_parts?.some(p => p === partId) : undefined),
-        map(t => t ?? false)
+        map(([f, p, t]) => !!f && !!p && !!t)
     )
 }
 else{
