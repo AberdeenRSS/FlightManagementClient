@@ -35,11 +35,11 @@
 
 import { useFlightViewState } from '@/composables/useFlightView';
 import { fromImmediate, useObservableShallow } from '@/helper/reactivity';
-import { getClosest, getValues, type TimeTreeData } from '@/helper/timeTree';
+import { getValues, type TimeTreeData } from '@/helper/timeTree';
 import { getFlightAndHistoricVessel } from '@/stores/combinedMethods';
 import { useFlightDataStore, type FlightDataState, type MeasurementTypes, type NumericalTypes, type ServerMeasurement } from '@/stores/flight_data';
 import { useObservable } from '@vueuse/rxjs';
-import { combineLatest, debounceTime, distinct, filter, map, shareReplay, switchMap, throttleTime, timer } from 'rxjs'
+import { combineLatest, debounceTime, distinct, filter, map, shareReplay, switchMap, throttleTime } from 'rxjs'
 import { watch, type ShallowRef } from 'vue';
 
 const { flightId, timeRange, resolution, vesselId, live } = useFlightViewState()
@@ -93,7 +93,8 @@ watch([flightId, useObservableShallow(logPartsAndSeries$), useObservableShallow(
 const vesselE$ = vessel$.pipe(filter(v => !!v))
 
 const stores$ = combineLatest([logPartsAndSeries$, fromImmediate(flightId), vesselE$]).pipe(
-    map(([series, fid, vessel]) => series.map(s => [getOrInitStore(fid, s.partId, s.series), vessel.parts[s.i].name] as [ShallowRef<FlightDataState>, string])),
+    filter(([series, fid, vessel]) => !!series && !!fid && !!vessel),
+    map(([series, fid, vessel]) => series.map(s => [getOrInitStore(fid, s.partId, s.series), vessel!.parts[s.i].name] as [ShallowRef<FlightDataState>, string])),
 )
 
 const res$ = fromImmediate(resolution).pipe(map(r => r === 'smallest' ? undefined : r), shareReplay(1))
