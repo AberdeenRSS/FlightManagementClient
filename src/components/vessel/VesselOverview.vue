@@ -1,7 +1,8 @@
 <template>
   <div class="container is-fluid content-container">
+    <h2 class="title is-4 mb-3">Vessels</h2>
     <div class="mb-5">
-      <h2 class="title is-4 mb-3">Add Vessel</h2>
+      
       <div class="field has-addons">
         <div class="control is-expanded">
           <input 
@@ -16,7 +17,7 @@
             @click="addVessel"
             class="button is-primary"
           >
-            Submit
+            Create Vessel
           </button>
         </div>
       </div>
@@ -68,7 +69,7 @@
   
   <script setup lang="ts">
   import { useObservableShallow } from '@/helper/reactivity';
-  import { fetchVesselsIfNecessary, getVessels } from '@/stores/vessels';
+  import { fetchVesselsIfNecessary, getVessels, addVesselToStore } from '@/stores/vessels';
   import { useRouter } from 'vue-router';
   import { computed, ref } from 'vue';
   import { useAuthHeaders } from '../../composables/api/getHeaders'
@@ -89,8 +90,14 @@
       return
     }
     try {
-      await axios.post(`${useRssApiBaseUri()}${url.value}`, {}, { headers: authHeaders.value })
-      newVesselName.value = '' // Clear the input after successful addition
+      const response = await axios.post(`${useRssApiBaseUri()}${url.value}`, {}, { headers: authHeaders.value })
+      if (response.status == 200) {
+        addVesselToStore(response.data)
+        newVesselName.value = '' // Clear the input after successful addition
+      } else {
+        alert("Error creating vessel: " + response.statusText)
+      }
+      
     } catch (e) {
       alert("Error creating vessel: " + e)
     }
