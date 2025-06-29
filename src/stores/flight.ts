@@ -140,7 +140,7 @@ export type Flight = {
     name: string;
     start: string;
     end: string | undefined;
-    available_commands: { [commandType: string]: CommandInfo[] }
+    available_commands: { [partId: string]: CommandInfo[] }
     measured_parts: { [part_id: string]: ({ name: string, type: string | [string, string][] })[] }
 }
 

@@ -17,7 +17,7 @@
     .command-widget {
 
         .command-widget-dispatch-btn{
-            flex-basis: 2rem;
+            flex-basis: 4rem;
         }
 
         .dispatch-btn{

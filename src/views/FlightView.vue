@@ -25,8 +25,7 @@
                 <CommandHistory></CommandHistory>
             </div>
             <div>
-                <CommandDispatch :vessel-id="vessel_id" :flight-id="id" v-model:command-type="commandDispatchCommandType"
-                v-model:part-id="commandDispatchPartId"></CommandDispatch>
+                <CommandDispatch :vessel-id="vessel_id" :flight-id="id"></CommandDispatch>
                 <!-- <CommandDispatchBar :vessel-id="vessel_id" :flight-id="id" v-model:command-type="commandDispatchCommandType"
                     v-model:part-id="commandDispatchPartId">
                     <CommandDispatchButton :command-type="commandDispatchCommandType" :part="commandDispatchPartId">

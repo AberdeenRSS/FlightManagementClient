@@ -2,6 +2,7 @@
 
     <div class="justify-space-between dashboard-log">
 
+
         <table>
             <tr v-for="(msg, i) of messages" :key="i">
                 <td>{{ msg.time }}</td>
@@ -23,6 +24,7 @@
     max-height: 50vh;
     overflow-y: scroll;
     color: black;
+    min-height: 10vh;
 
     td {
         padding-right: .5em;
@@ -39,7 +41,7 @@ import { getValues, type TimeTreeData } from '@/helper/timeTree';
 import { getFlightAndHistoricVessel } from '@/stores/combinedMethods';
 import { useFlightDataStore, type FlightDataState, type MeasurementTypes, type NumericalTypes, type ServerMeasurement } from '@/stores/flight_data';
 import { useObservable } from '@vueuse/rxjs';
-import { combineLatest, debounceTime, distinct, filter, map, shareReplay, switchMap, throttleTime } from 'rxjs'
+import { combineLatest, debounceTime, distinct, filter, map, shareReplay, switchMap, tap, throttleTime } from 'rxjs'
 import { watch, type ShallowRef } from 'vue';
 
 const { flightId, timeRange, resolution, vesselId, live } = useFlightViewState()

@@ -1,8 +1,10 @@
-import { fetchRssApi } from '@/composables/api/rssFlightServerApi';
+import { fetchRssApi, useRSSMqtt } from '@/composables/api/rssFlightServerApi';
 import type { LoadingStates } from '@/helper/loadingStates';
 import { ETERNITY, getMissingRangesRecursive, insertValue, type TimeTreeData, type TimeTreeNode } from '@/helper/timeTree';
 import { until } from '@vueuse/core';
 import { ref, shallowRef, triggerRef, watch, type ShallowRef } from 'vue';
+import struct, { type DataType } from 'python-struct'
+import { encodePayload } from '@/helper/struct_helper';
 
 function getCommandsRequestUrl(flightId: string, start: Date, end: Date, commandType?: string, vesselPart?: string, ){
 
@@ -135,7 +137,7 @@ async function fetchCommandsInTimeFrame(flightId: string, start: Date, end: Date
     
 }
 
-function dispatchCommand(flightId: string, cmd: Command){
+async function dispatchCommand(flightId: string, vesselId: string, cmd: Command){
 
     const allLastCommandData = getOrInitLastCommand(flightId, ALL_STORE_PLACEHOLDER, ALL_STORE_PLACEHOLDER)
     const thisLastCommandData = getOrInitLastCommand(flightId, cmd._part_id, cmd._command_type)
@@ -147,8 +149,12 @@ function dispatchCommand(flightId: string, cmd: Command){
     integrateLastCommand(allPartsLastCommandData, toCommandAndDate(cmd))
     integrateLastCommand(allTypesLastCommandData, toCommandAndDate(cmd))
 
-    const req = fetchRssApi(getDispatchCommandUrl(flightId))
-    return req.post([cmd], 'json')
+    const encodedPayload = encodePayload(cmd.command_schema, cmd.create_time.getTime()/1000, cmd.command_payload)
+
+    const mqtt = useRSSMqtt()
+
+    await mqtt.value!.publishAsync(`${flightId}/c/${cmd._part_index}/${cmd.command_index}`, encodedPayload, {qos: 2})
+
 }
     
 // async function subscribeRealtime(flightId: string){
@@ -319,7 +325,9 @@ export type Command = {
 
     _part_id: string
 
-    create_time: Date | string
+    _part_index: number
+
+    create_time: Date
 
     dispatch_time?: Date | string
 
@@ -328,6 +336,10 @@ export type Command = {
     complete_time?: Date | string
 
     state: CommandStates
+
+    command_schema: string
+
+    command_index: number
 
     command_payload?: Record<string, unknown>
 

@@ -4,6 +4,7 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import checker from 'vite-plugin-checker';
 import basicSsl from '@vitejs/plugin-basic-ssl'
+import { nodePolyfills } from 'vite-plugin-node-polyfills'
 
 // https://github.com/vuetifyjs/vuetify-loader/tree/next/packages/vite-plugin
 import vuetify from 'vite-plugin-vuetify'
@@ -12,6 +13,7 @@ import vuetify from 'vite-plugin-vuetify'
 export default defineConfig({
   plugins: [
 		vue(),
+    nodePolyfills(),
 		vuetify({ autoImport: true }),
     checker({
       vueTsc: {

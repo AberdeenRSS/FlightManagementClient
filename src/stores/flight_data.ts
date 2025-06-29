@@ -6,6 +6,7 @@ import { until } from '@vueuse/core';
 import { ref, shallowRef, triggerRef, type Ref, type ShallowRef } from 'vue';
 import { getOrInitStore as getOrInitFlightStore, type Flight } from './flight';
 import struct, { type DataType } from 'python-struct'
+import { decodePayload } from '@/helper/struct_helper';
 
 function getMeasurementRequestUrl(flightId: string, vesselPart: string, seriesName: string, start: Date, end: Date, resolution: Exclude<AggregationLevels | 'smallest', 'eternity'>) {
     if (resolution == 'smallest')
@@ -128,35 +129,39 @@ async function subscribeRealtime(flight: Flight) {
 
         const store = getOrInitStore(flight._id, partName, series.name)
 
-        const time = (struct.unpack('!d', payload.subarray(0, FLOAT_SIZE))[0] as number)
+        // const time = (struct.unpack('!d', payload.subarray(0, FLOAT_SIZE))[0] as number)
+
+        let [time, data] = decodePayload(series.type, payload)
 
         const date = new Date(time*1000)
 
         const dateIso = date.toISOString()
 
-        let data: DataType | DataType[] | string
+        // let data: DataType | DataType[] | string
 
-        if (series.type === '[str]'){
+        // if (series.type === '[str]'){
 
-            data = textDecorder.decode(payload.subarray(FLOAT_SIZE, payload.length))
-        }
-        else if (series.type.length == 1) {
-            data = struct.unpack(`!${series.type}`, payload.subarray(FLOAT_SIZE, payload.length))
-        }
-        else if (Array.isArray(series.type) && series.type[0].length == 2){
+        //     data = textDecorder.decode(payload.subarray(FLOAT_SIZE, payload.length))
+        //     console.log(data)
+        // }
+        // else if (series.type.length == 1) {
+        //     data = struct.unpack(`!${series.type}`, payload.subarray(FLOAT_SIZE, payload.length))
+        // }
+        // else if (Array.isArray(series.type) && series.type[0].length == 2){
 
-            const condensedFormat = series.type.map(s => s[1]).join()
+        //     const condensedFormat = series.type.map(s => s[1]).join()
 
-            data = struct.unpack(`!${condensedFormat}`, payload.subarray(FLOAT_SIZE, payload.length))
+        //     data = struct.unpack(`!${condensedFormat}`, payload.subarray(FLOAT_SIZE, payload.length))
 
-        }
-        else{
-            return
-        }
+        // }
+        // else{
+        //     return
+        // }
         
-        const singleValue = data.length < 2
+        const singleValue = !Array.isArray(data) || data.length < 2
 
-        data = singleValue ? data[0] : data
+        data = singleValue && data.length < 2 ? data[0] : data
+
 
         const m = { 
             measurements: [[time, data]],
