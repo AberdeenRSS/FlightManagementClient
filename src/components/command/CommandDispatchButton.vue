@@ -114,7 +114,7 @@ async function onDispatchCommand() {
         command_payload: commandContent.value
     } as Command)
 
-    await dispatchCommand(flightId.value, vesselId.value, command)
+    await dispatchCommand(flightId.value, command)
 
 }
 

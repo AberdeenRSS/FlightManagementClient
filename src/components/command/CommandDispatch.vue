@@ -325,7 +325,7 @@ function selectSuggestion(cmd: string | null = null) {
 
     args[args.length-1] = cmd
 
-    input.value = args.map(a => a.includes(' ') && !a.startsWith('"') ? `"${a}"` : a).join(' ') + ' '
+    input.value = args.map((a: string) => a.includes(' ') && !a.startsWith('"') ? `"${a}"` : a).join(' ') + ' '
 
 }
 
@@ -352,8 +352,9 @@ function getArgs(cmd: string){
 
     if(matches == null)
         return uncompleted
+    
 
-    return matches.map((m: RegExpExecArray) => m[0].replaceAll('"', '')).toArray().concat(uncompleted)
+    return [...matches].map(m => m[0].replaceAll('"', '')).concat(uncompleted)
 }
 
 async function submitCommand(){
@@ -390,7 +391,7 @@ async function submitCommand(){
             command_payload: payload
         } as Command)
 
-        await dispatchCommand(flightId.value, vesselId.value, command)
+        await dispatchCommand(flightId.value, command)
 
         input.value = ''
     }

@@ -5,7 +5,7 @@ import { ETERNITY, getMissingRangesRecursive, insertValue, type AggregationLevel
 import { until } from '@vueuse/core';
 import { ref, shallowRef, triggerRef, type Ref, type ShallowRef } from 'vue';
 import { getOrInitStore as getOrInitFlightStore, type Flight } from './flight';
-import { decodePayload } from '@/helper/struct_helper';
+import { decodePayload, type LoopingDataType } from '@/helper/struct_helper';
 
 function getMeasurementRequestUrl(flightId: string, vesselPart: string, seriesName: string, start: Date, end: Date, resolution: Exclude<AggregationLevels | 'smallest', 'eternity'>) {
     if (resolution == 'smallest')
@@ -160,7 +160,7 @@ async function subscribeRealtime(flight: Flight) {
         
         const singleValue = !Array.isArray(data) || data.length < 2
 
-        data = singleValue && data.length < 2 ? data[0] : data
+        data = singleValue && (data as LoopingDataType[]).length < 2 ? (data as LoopingDataType[])[0] : data
 
 
         const m = { 

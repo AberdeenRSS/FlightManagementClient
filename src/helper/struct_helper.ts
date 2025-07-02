@@ -12,6 +12,7 @@ const DOUBLE_SIZE = 8; // Same as Python's struct calcsize('!d')
 //   as the Python tuple branch.
 export type Shape = string | typeof String | Shape[];
 
+export type LoopingDataType = struct.DataType | LoopingDataType[]
 
 /**
  * Recursively calculates the size (in bytes) required for the payload given
@@ -32,7 +33,7 @@ export function calcPayloadSize(shape: Shape | undefined, payload: unknown, topL
 
     // When the shape is the String constructor, encode the UTF-8 string.
     if (shape === '[str]') {
-      const encodedStr: Buffer = Buffer.from(payload, 'utf8');
+      const encodedStr: Buffer = Buffer.from(payload as string, 'utf8');
       const strLen: number = encodedStr.length;
       return topLevel ? strLen : (INT_SIZE + strLen);
     }
@@ -40,7 +41,7 @@ export function calcPayloadSize(shape: Shape | undefined, payload: unknown, topL
     // Handle the case of an array type encoded as a string like "[d]".
     if (shape.startsWith('[')) {
       let size = 0;
-      const payloadLen = payload.length;
+      const payloadLen = (payload as []).length;
       if (!topLevel) {
         // Reserve INT_SIZE bytes for the array length (if not at the top level).
         size += INT_SIZE;
@@ -48,7 +49,7 @@ export function calcPayloadSize(shape: Shape | undefined, payload: unknown, topL
       // Remove the surrounding brackets to get the inner format.
       const innerShape = shape.substring(1, shape.length - 1);
       for (let i = 0; i < payloadLen; i++) {
-        size += calcPayloadSize(innerShape, payload[i], false);
+        size += calcPayloadSize(innerShape, (payload as [])[i], false);
       }
       return size;
     }
@@ -66,7 +67,7 @@ export function calcPayloadSize(shape: Shape | undefined, payload: unknown, topL
   if (Array.isArray(shape)) {
     let total = 0;
     for (let i = 0; i < shape.length; i++) {
-      total += calcPayloadSize(shape[i], payload[i], false);
+      total += calcPayloadSize(shape[i], (payload as [])[i], false);
     }
     return total;
   }
@@ -91,7 +92,7 @@ export function encodePayloadInternal(shape: Shape | undefined, payload: unknown
   
       // When the shape equals the String constructor, encode the string.
     if (shape === '[str]') {
-      const encodedStr: Buffer = Buffer.from(payload, 'utf8');
+      const encodedStr: Buffer = Buffer.from(payload as string, 'utf8');
       const strLen: number = encodedStr.length;
       if (topLevel) {
           buffer.set(encodedStr, offset)
@@ -109,7 +110,7 @@ export function encodePayloadInternal(shape: Shape | undefined, payload: unknown
 
     // Handle the array (list) case where the format string starts with '['.
     if (shape.startsWith('[')) {
-      const payloadLen: number = payload.length;
+      const payloadLen: number = (payload as []).length;
       if (!topLevel) {
         // Pack the array length using format '!i'
         const lenPacked: Buffer = struct.pack('!i', payloadLen);
@@ -118,7 +119,7 @@ export function encodePayloadInternal(shape: Shape | undefined, payload: unknown
       }
       const innerShape: string = shape.substring(1, shape.length - 1);
       for (let i = 0; i < payloadLen; i++) {
-        [buffer, offset] = encodePayloadInternal(innerShape, payload[i], buffer, offset, false);
+        [buffer, offset] = encodePayloadInternal(innerShape, (payload as [])[i], buffer, offset, false);
       }
       return [buffer, offset];
     }
@@ -127,7 +128,7 @@ export function encodePayloadInternal(shape: Shape | undefined, payload: unknown
     if (Array.isArray(payload)) {
       packed = struct.pack('!' + shape, ...payload);
     } else {
-      packed = struct.pack('!' + shape, payload);
+      packed = struct.pack('!' + shape, payload as struct.DataType);
     }
     buffer.set(packed, offset)
     offset += struct.sizeOf('!' + shape);
@@ -143,7 +144,7 @@ export function encodePayloadInternal(shape: Shape | undefined, payload: unknown
   // For a collection of shapes (regular arrays), iteratively encode each element.
   if (Array.isArray(shape)) {
     for (let i = 0; i < shape.length; i++) {
-      [buffer, offset] = encodePayloadInternal(shape[i], payload[i], buffer, offset, false);
+      [buffer, offset] = encodePayloadInternal(shape[i], (payload as [])[i], buffer, offset, false);
     }
     return [buffer, offset];
   }
@@ -187,7 +188,7 @@ export function encodePayload(shape: Shape | undefined, time: number, payload: u
  * @param payload - The Buffer containing the encoded payload.
  * @returns A tuple of [time, decodedValue].
  */
-export function decodePayload(shape: Shape, payload: Buffer): [number, unknown] {
+export function decodePayload(shape: Shape, payload: Buffer): [number, LoopingDataType] {
   // Decode the time (first 8 bytes using big-endian double format).
   const timeBuf: Buffer = payload.slice(0, DOUBLE_SIZE);
   const timeArr: number[] = struct.unpack('!d', timeBuf) as number[];
@@ -212,7 +213,7 @@ export function decodePayloadInternal(
   payload: Buffer,
   offset: number,
   topLevel: boolean
-): [unknown, number] {
+): [LoopingDataType, number] {
 
   // Case 1: When the shape is a format string.
   if (typeof shape === 'string') {
@@ -252,7 +253,7 @@ export function decodePayloadInternal(
         offset += INT_SIZE;
       }
 
-      const resArr: unknown[] = [];
+      const resArr: LoopingDataType[] = [];
       for (let i = 0; i < payloadLen; i++) {
         const [decoded, newOffset] = decodePayloadInternal(innerFormat, payload, offset, false);
         resArr.push(decoded);
@@ -264,9 +265,9 @@ export function decodePayloadInternal(
     // Non-array case: decode using struct.unpack.
     const size: number = struct.sizeOf('!' + shape);
     const buf: Buffer = payload.slice(offset, offset + size);
-    const unpacked: unknown[] = struct.unpack('!' + shape, buf);
+    const unpacked: struct.DataType[] = struct.unpack('!' + shape, buf);
     offset += size;
-    const result: unknown = (unpacked.length === 1) ? unpacked[0] : unpacked;
+    const result: struct.DataType | struct.DataType[] = (unpacked.length === 1) ? unpacked[0] : unpacked;
     return [result, offset];
   }
 
@@ -279,7 +280,7 @@ export function decodePayloadInternal(
 
   // Case 4: Collection of shapes (i.e. an array of shapes).
   if (Array.isArray(shape)) {
-    const resArr: unknown[] = [];
+    const resArr: LoopingDataType[] = [];
     for (let i = 0; i < shape.length; i++) {
       const [decoded, newOffset] = decodePayloadInternal(shape[i], payload, offset, false);
       resArr.push(decoded);
