@@ -349,7 +349,7 @@ function getArgs(cmd: string){
         uncompleted = ['']
 
     // eslint-disable-next-line no-invalid-regexp
-    const argsRegex = /(("[\w\s\-$%#&*@!^\(\)]+")|[\w\-$%#&*@!^\(\)]+)/gm
+    const argsRegex = /(("[\w\s\-$%#&*@!^\.,\(\)]+")|[\w\-$%#&*@!^\.,\(\)]+)/gm
 
     const matches = completedPart.matchAll(argsRegex)
 
@@ -372,10 +372,12 @@ async function submitCommand(){
 
     let payload = undefined
     
-    if(Array.isArray(schema))
-        payload = args.slice(2, 2 + schema.length)
-    else if(schema)
-        payload = args[2]
+    if(Array.isArray(schema)){
+        payload = args.slice(2, 2 + schema.length).map((a, i) => convertPayload((selectedCommand.value!.payload_schema as [string, string][])[i][1], a))
+    }
+    else if(schema){
+        payload = convertPayload(selectedCommand.value!.payload_schema as string, args[2])
+    }
 
     try{
 
@@ -440,6 +442,36 @@ function getPayloadHint(schema: string){
             return 'Unknown'
     }
 
+}
+
+function convertPayload(schema: string, payload: string){
+        switch(schema){
+        case '[str]':
+            return payload
+        case '?':
+            if(Number.isNaN(payload))
+                return Boolean(payload)
+            else
+                return Boolean(Number(payload))
+        case 'c':
+        case 'b':
+        case 'B':
+        case 'h':
+        case 'H':
+        case 'i':
+        case 'n':
+        case 'N':
+        case 'I': 
+        case 'l':
+        case 'L':
+        case 'q':
+        case 'Q':
+        case 'f':
+        case 'd':
+            return Number(payload)
+        default:
+            return payload
+    }
 }
 
 </script>
