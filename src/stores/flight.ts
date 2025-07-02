@@ -2,7 +2,7 @@ import { fetchRssApi } from '@/composables/api/rssFlightServerApi';
 import { asObservable, fromImmediate } from '@/helper/reactivity';
 import { until } from '@vueuse/core';
 import { combineLatest, map, of, shareReplay, switchMap, type Observable } from 'rxjs';
-import { ref, shallowRef, triggerRef, watch, type Ref, type ShallowRef } from 'vue';
+import { ref, shallowRef, triggerRef, type Ref, type ShallowRef } from 'vue';
 
 export const state = {
     vesselFlights: {} as { [index: string]: ShallowRef<FlightsState> },

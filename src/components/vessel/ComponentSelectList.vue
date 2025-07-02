@@ -36,7 +36,7 @@ const { partId } = toRefs(props)
 
 const { vesselId, flightId } = useFlightViewState()
 
-const { vessel$, flight$ } = getFlightAndHistoricVessel(vesselId, flightId)
+const { vessel$ } = getFlightAndHistoricVessel(vesselId, flightId)
 
 
 const vessel = useObservableShallow(vessel$)

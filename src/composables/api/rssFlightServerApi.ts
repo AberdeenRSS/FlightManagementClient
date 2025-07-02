@@ -107,10 +107,10 @@ export function useRSSMqtt(namespace?: string) {
 }
 
 async function buildNewMqttConnection(namespace?: string) {
-    const { currentUser } = useUser()
+    // const { currentUser } = useUser()
 
     // Wait until there is current (logged in account)
-    const account = await until(currentUser).toBeTruthy()
+    // const account = await until(currentUser).toBeTruthy()
 
     const client = mqttManager[namespace ?? BASE_NAMESPACE].value= await mqtt.connectAsync(mqttUri)
 

@@ -151,7 +151,6 @@ import ElementSettings from '@/components/FlightDashboardElem/ElementSettings.vu
 import VesselComponentDashboardElem from '@/components/FlightDashboardElem/VesselComponentDashboardElem.vue';
 import DashboardSaver from '@/components/misc/dashboard/DashboardSaver.vue';
 import CommandDispatch from '@/components/command/CommandDispatch.vue';
-import CommandDispatchButton from '@/components/command/CommandDispatchButton.vue';
 import AdvancedDatetimeSelector from '@/components/misc/advanced-datetime-selector/AdvancedDatetimeSelector.vue';
 import CommandHistory from '@/components/command/CommandHistory.vue'
 import Log from '@/components/flight_data/Log.vue';
@@ -195,8 +194,8 @@ const resolutionTexts: { [_ in AggregationLevels | 'smallest']?: string } = {
     'hour': 'hours',
 }
 
-const commandDispatchPartId = ref<string | undefined>()
-const commandDispatchCommandType = ref<string | undefined>()
+// const commandDispatchPartId = ref<string | undefined>()
+// const commandDispatchCommandType = ref<string | undefined>()
 
 
 const { setTimeRange, setFlightId, setVesselId, setLive, setResolution, elementInSettings } = useProvideFlightView()

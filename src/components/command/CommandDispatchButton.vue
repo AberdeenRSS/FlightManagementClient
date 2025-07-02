@@ -22,7 +22,7 @@
 <script lang="ts" setup>
 
 import { useFlightViewState } from '@/composables/useFlightView';
-import { fromImmediate, useObservableShallow, waitUntil } from '@/helper/reactivity';
+import { fromImmediate, useObservableShallow } from '@/helper/reactivity';
 import { getFlightAndHistoricVessel } from '@/stores/combinedMethods';
 import { useCommandStore, type Command } from '@/stores/commands';
 import { useObservable } from '@vueuse/rxjs';
@@ -51,7 +51,7 @@ const { flightId, vesselId } = useFlightViewState()
 const  { flight$, vessel$ } = getFlightAndHistoricVessel(vesselId, flightId)
 // const part$ = getPart(vessel$, part)
 
-const flight = useObservable(flight$)
+// const flight = useObservable(flight$)
 
 const commandSchemaAndIndex$ = combineLatest([flight$, fromImmediate(part!), fromImmediate(commandType!)]).pipe(
     filter(([f, p, t]) => !!f && !!p && !!t),

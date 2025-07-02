@@ -31,14 +31,14 @@ import { useFlightDataStore, type NumericalTypes } from '@/stores/flight_data';
 import { getClosest } from '@/helper/timeTree'
 import { fromImmediate, useObservableShallow } from '@/helper/reactivity'
 import { getFlightAndHistoricVessel } from '@/stores/combinedMethods';
-import { combineLatest, debounceTime, distinct, filter, map, of, switchMap, tap, throttleTime } from 'rxjs';
+import { combineLatest, debounceTime, distinct, filter, map, of, switchMap, throttleTime } from 'rxjs';
 import { getPart } from '@/stores/vessels';
 
 import * as THREE from 'three';
 import { useElementSize } from '@vueuse/core';
 import { watch } from 'vue';
 
-const FETCH_LEADTIME = 60_000;
+// const FETCH_LEADTIME = 60_000;
 
 const viewport = ref<HTMLElement>()
 

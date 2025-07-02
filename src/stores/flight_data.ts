@@ -5,7 +5,6 @@ import { ETERNITY, getMissingRangesRecursive, insertValue, type AggregationLevel
 import { until } from '@vueuse/core';
 import { ref, shallowRef, triggerRef, type Ref, type ShallowRef } from 'vue';
 import { getOrInitStore as getOrInitFlightStore, type Flight } from './flight';
-import struct, { type DataType } from 'python-struct'
 import { decodePayload } from '@/helper/struct_helper';
 
 function getMeasurementRequestUrl(flightId: string, vesselPart: string, seriesName: string, start: Date, end: Date, resolution: Exclude<AggregationLevels | 'smallest', 'eternity'>) {
@@ -107,12 +106,10 @@ async function subscribeRealtime(flight: Flight) {
 
     const partDict = Object.keys(flight.measured_parts)
 
-    const FLOAT_SIZE = struct.sizeOf('d')
 
     const flightStore = getOrInitFlightStore(flight._vessel_id)
     const curFlight = flightStore.value.flights[flight._id].flight
 
-    const textDecorder = new TextDecoder()
 
     function parseMessage(topic: string, payload: Buffer, _pck: unknown){
 
@@ -131,7 +128,10 @@ async function subscribeRealtime(flight: Flight) {
 
         // const time = (struct.unpack('!d', payload.subarray(0, FLOAT_SIZE))[0] as number)
 
-        let [time, data] = decodePayload(series.type, payload)
+        const decoded = decodePayload(series.type, payload)
+
+        const time = decoded[0]
+        let data = decoded[1]
 
         const date = new Date(time*1000)
 

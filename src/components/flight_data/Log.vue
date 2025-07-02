@@ -41,7 +41,7 @@ import { getValues, type TimeTreeData } from '@/helper/timeTree';
 import { getFlightAndHistoricVessel } from '@/stores/combinedMethods';
 import { useFlightDataStore, type FlightDataState, type MeasurementTypes, type NumericalTypes, type ServerMeasurement } from '@/stores/flight_data';
 import { useObservable } from '@vueuse/rxjs';
-import { combineLatest, debounceTime, distinct, filter, map, shareReplay, switchMap, tap, throttleTime } from 'rxjs'
+import { combineLatest, debounceTime, distinct, filter, map, shareReplay, switchMap, throttleTime } from 'rxjs'
 import { watch, type ShallowRef } from 'vue';
 
 const { flightId, timeRange, resolution, vesselId, live } = useFlightViewState()

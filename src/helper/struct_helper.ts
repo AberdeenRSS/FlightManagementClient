@@ -22,7 +22,7 @@ export type Shape = string | typeof String | Shape[];
  * @param topLevel - Flag for whether we’re at the root level (defaults to true)
  * @returns The number of bytes required for the payload encoding
  */
-export function calcPayloadSize(shape: Shape | undefined, payload: any, topLevel = true): number {
+export function calcPayloadSize(shape: Shape | undefined, payload: unknown, topLevel = true): number {
 
   if(!shape)
     return 0
@@ -84,7 +84,7 @@ export function calcPayloadSize(shape: Shape | undefined, payload: any, topLevel
  * @param topLevel - Flag indicating if the current level is the top level (default: true)
  * @returns A tuple containing the updated Buffer and new offset.
  */
-export function encodePayloadInternal(shape: Shape | undefined, payload: any, buffer: Buffer, offset: number, topLevel = true): [Buffer, number] {
+export function encodePayloadInternal(shape: Shape | undefined, payload: unknown, buffer: Buffer, offset: number, topLevel = true): [Buffer, number] {
 
   
   if (typeof shape === 'string') {
@@ -161,7 +161,7 @@ export function encodePayloadInternal(shape: Shape | undefined, payload: any, bu
  * @param payload - The payload to encode
  * @returns A Buffer containing the binary encoding.
  */
-export function encodePayload(shape: Shape | undefined, time: number, payload: any): Buffer {
+export function encodePayload(shape: Shape | undefined, time: number, payload: unknown): Buffer {
   // Determine the total size: time (DOUBLE_SIZE) plus the payload size.
   const totalSize: number = DOUBLE_SIZE + calcPayloadSize(shape, payload);
   const buffer: Buffer = Buffer.alloc(totalSize);
@@ -187,7 +187,7 @@ export function encodePayload(shape: Shape | undefined, time: number, payload: a
  * @param payload - The Buffer containing the encoded payload.
  * @returns A tuple of [time, decodedValue].
  */
-export function decodePayload(shape: Shape, payload: Buffer): [number, any] {
+export function decodePayload(shape: Shape, payload: Buffer): [number, unknown] {
   // Decode the time (first 8 bytes using big-endian double format).
   const timeBuf: Buffer = payload.slice(0, DOUBLE_SIZE);
   const timeArr: number[] = struct.unpack('!d', timeBuf) as number[];
@@ -212,7 +212,7 @@ export function decodePayloadInternal(
   payload: Buffer,
   offset: number,
   topLevel: boolean
-): [any, number] {
+): [unknown, number] {
 
   // Case 1: When the shape is a format string.
   if (typeof shape === 'string') {
@@ -252,7 +252,7 @@ export function decodePayloadInternal(
         offset += INT_SIZE;
       }
 
-      const resArr: any[] = [];
+      const resArr: unknown[] = [];
       for (let i = 0; i < payloadLen; i++) {
         const [decoded, newOffset] = decodePayloadInternal(innerFormat, payload, offset, false);
         resArr.push(decoded);
@@ -264,9 +264,9 @@ export function decodePayloadInternal(
     // Non-array case: decode using struct.unpack.
     const size: number = struct.sizeOf('!' + shape);
     const buf: Buffer = payload.slice(offset, offset + size);
-    const unpacked: any[] = struct.unpack('!' + shape, buf);
+    const unpacked: unknown[] = struct.unpack('!' + shape, buf);
     offset += size;
-    const result: any = (unpacked.length === 1) ? unpacked[0] : unpacked;
+    const result: unknown = (unpacked.length === 1) ? unpacked[0] : unpacked;
     return [result, offset];
   }
 
@@ -279,7 +279,7 @@ export function decodePayloadInternal(
 
   // Case 4: Collection of shapes (i.e. an array of shapes).
   if (Array.isArray(shape)) {
-    const resArr: any[] = [];
+    const resArr: unknown[] = [];
     for (let i = 0; i < shape.length; i++) {
       const [decoded, newOffset] = decodePayloadInternal(shape[i], payload, offset, false);
       resArr.push(decoded);

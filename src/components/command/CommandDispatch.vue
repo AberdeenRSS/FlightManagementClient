@@ -94,17 +94,14 @@
 </style>
   
 <script setup lang="ts">
-import ComponentSelectList from '@/components/vessel/ComponentSelectList.vue';
 import { useFlightViewState } from '@/composables/useFlightView';
 import { fromImmediate, useObservableShallow } from '@/helper/reactivity';
-import { encodePayload } from '@/helper/struct_helper';
 import { getFlightAndHistoricVessel } from '@/stores/combinedMethods';
 import { useCommandStore, type Command } from '@/stores/commands';
 import { useObservable } from '@vueuse/rxjs';
-import { match } from 'assert';
-import { combineLatest, filter, map, share, shareReplay, startWith, tap } from 'rxjs';
+import { combineLatest, filter, map, shareReplay, startWith, tap } from 'rxjs';
 import { v4 } from 'uuid';
-import { computed, ref, toRefs, watch } from 'vue';
+import { ref } from 'vue';
 
 
 
@@ -356,7 +353,7 @@ function getArgs(cmd: string){
     if(matches == null)
         return uncompleted
 
-    return matches.map(m => m[0].replaceAll('"', '')).toArray().concat(uncompleted)
+    return matches.map((m: RegExpExecArray) => m[0].replaceAll('"', '')).toArray().concat(uncompleted)
 }
 
 async function submitCommand(){
@@ -364,7 +361,6 @@ async function submitCommand(){
     if((error.value?.length ?? 0) > 0)
         return
 
-    const t = Date.now()/1000
 
     const args = getArgs(input.value!)
     
@@ -373,7 +369,7 @@ async function submitCommand(){
     let payload = undefined
     
     if(Array.isArray(schema)){
-        payload = args.slice(2, 2 + schema.length).map((a, i) => convertPayload((selectedCommand.value!.payload_schema as [string, string][])[i][1], a))
+        payload = args.slice(2, 2 + schema.length).map((a: string, i: number) => convertPayload((selectedCommand.value!.payload_schema as [string, string][])[i][1], a))
     }
     else if(schema){
         payload = convertPayload(selectedCommand.value!.payload_schema as string, args[2])

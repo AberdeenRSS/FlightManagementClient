@@ -2,8 +2,7 @@ import { fetchRssApi, useRSSMqtt } from '@/composables/api/rssFlightServerApi';
 import type { LoadingStates } from '@/helper/loadingStates';
 import { ETERNITY, getMissingRangesRecursive, insertValue, type TimeTreeData, type TimeTreeNode } from '@/helper/timeTree';
 import { until } from '@vueuse/core';
-import { ref, shallowRef, triggerRef, watch, type ShallowRef } from 'vue';
-import struct, { type DataType } from 'python-struct'
+import { ref, shallowRef, triggerRef, type ShallowRef } from 'vue';
 import { encodePayload } from '@/helper/struct_helper';
 
 function getCommandsRequestUrl(flightId: string, start: Date, end: Date, commandType?: string, vesselPart?: string, ){
@@ -16,9 +15,6 @@ function getCommandsRequestUrl(flightId: string, start: Date, end: Date, command
     return `command/get_range/${flightId}/${start.toISOString()}/${end.toISOString()}/${commandType}/${vesselPart}`
 }
 
-function getDispatchCommandUrl(flightId: string){
-    return `/command/dispatch/${flightId}`
-}
 
 const store = {
     commands: {} as Record<string, ShallowRef<CommandState>>,
@@ -137,7 +133,7 @@ async function fetchCommandsInTimeFrame(flightId: string, start: Date, end: Date
     
 }
 
-async function dispatchCommand(flightId: string, vesselId: string, cmd: Command){
+async function dispatchCommand(flightId: string, cmd: Command){
 
     const allLastCommandData = getOrInitLastCommand(flightId, ALL_STORE_PLACEHOLDER, ALL_STORE_PLACEHOLDER)
     const thisLastCommandData = getOrInitLastCommand(flightId, cmd._part_id, cmd._command_type)
@@ -299,15 +295,7 @@ export function useCommandStore(){
     return {store, fetchCommandsInTimeFrame, dispatchCommand, getAllForFlight, getOrInitStore, getOrInitLastCommand}
 }
 
-type wsCommandNewMsg = {
-    flight_id: string,
-    commands: Command[]
-}
 
-type wsCommandUpdateMsg = {
-    flight_id: string,
-    commands: Command[]
-}
 
 
 export type CommandStates =  ('new')|('dispatched')|('received')|('success')|('failed')
