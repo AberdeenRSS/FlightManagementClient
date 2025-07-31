@@ -44,13 +44,20 @@
               </td>
               <td>{{ item.entity?._version }}</td>
               <td>{{ item.entity?.parts.length }}</td>
-              <td>
+              <td class="buttons">
                 <button 
                   @click="router.push(`./vessel/details/${item.entity?._id}`)"
                   class="button is-small is-light"
                 >
                   Details
                 </button>
+                <button v-if="
+                  item.entity?.permissions?.[currentUser!.uid] === 'owner' ||
+                  item.entity?.no_auth_permission === 'owner'
+                  "
+                  @click="deleteVessel(item.entity?._id)"
+                  class="button is-small is-danger is-light"
+                >Delete</button>
               </td>
             </tr>
           </tbody>
@@ -74,9 +81,12 @@
   import { useAuthHeaders } from '../../composables/api/getHeaders'
   import axios from 'axios';
   import { useRssApiBaseUri } from '../../composables/api/rssFlightServerApi'
+  import { useUser } from '@/composables/auth/useUser';
   
   const newVesselName = ref('')
   const authHeaders = useAuthHeaders();
+  const { currentUser } = useUser();
+
   const url = computed(() => `/vessel/create_vessel/${newVesselName.value}`)
   const router = useRouter()
   const vessels = useObservableShallow(getVessels(), { initialValue: undefined })
@@ -93,6 +103,22 @@
       newVesselName.value = '' // Clear the input after successful addition
     } catch (e) {
       alert("Error creating vessel: " + e)
+    }
+  }
+
+  async function deleteVessel(vessel_id: string){
+    if (!window.confirm('Are you sure you want to delete this vessel?')) {
+      return;
+    }
+    try {
+      const result = await axios.delete(`${useRssApiBaseUri()}/v1/vessels/${vessel_id}`, { headers: authHeaders.value })
+      if (result.status === 200) {
+        alert("Vessel deleted successfully")
+      } else {
+        alert("Failed to delete vessel: " + result.statusText)
+      }
+    } catch (e) {
+      alert("Error deleting vessel: " + e)
     }
   }
   </script>
