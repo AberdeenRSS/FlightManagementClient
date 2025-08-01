@@ -9,15 +9,17 @@ const loginState = ref<string>('default')
 
 const { currentUser, logout } = useUser()
 
-function login(){
+function login() {
     router.push('/login')
 }
 
-function onLogout(){
-    logout()
+function onLogout() {
+    if (confirm('Are you sure you want to logout?')) {
+        logout()
+    }
 }
 
-function register(){
+function register() {
     router.push('/register')
 }
 
@@ -29,8 +31,33 @@ function register(){
     <div class="d-flex align-center" v-else>
 
         <template v-if="currentUser">
-            <div>{{ currentUser.name }}</div>
-            <v-btn @click="onLogout">Logout</v-btn>
+            <v-menu>
+                <template v-slot:activator="{ props }">
+                    <v-btn 
+                        v-bind="props" 
+                        variant="flat"
+                        class="rounded"
+                        color="primary"
+                        block="false">
+                        <v-icon>mdi-account</v-icon>
+                    </v-btn>
+                </template>
+                
+                <div class="bg-surface elevation-8 rounded pa-2">
+                    <div class="text-body-2 pa-2 text-medium-emphasis">
+                        {{ currentUser.name }}
+                    </div>
+                    <v-btn 
+                        @click="onLogout" 
+                        variant="text" 
+                        size="small"
+                        prepend-icon="mdi-logout"
+                        class="text-body-2 w-100 justify-start"
+                    >
+                        Logout
+                    </v-btn>
+                </div>
+            </v-menu>
         </template>
         <template v-else>
             <v-btn @click="login">Login</v-btn>
