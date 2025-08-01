@@ -1,47 +1,51 @@
 <template>
-    <div class="table-container">
-      <table class="table is-fullwidth is-striped is-hoverable">
-        <thead>
-          <tr>
-            <th>Flight Name</th>
-            <th>Date/Time</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="item in flightsSorted" :key="item._id">
-            <td>
-              <a 
-                @click="router.push(`/flight/${item._vessel_id}/${item!._id}`)"
-                class="has-text-link"
-                >
-                {{ item!.name }}
-              </a>
-            </td>
-            <td>
-              {{ new Date(Date.parse(asUtcString(item!.start))).toLocaleDateString() }}
-              {{ new Date(Date.parse(asUtcString(item!.start))).toLocaleTimeString() }}
-            </td>
-            <td class="buttons">
-              <button class="button is-primary" @click="router.push(`/flight/${item._vessel_id}/${item!._id}`)">
+  <v-table striped="even" density="compact">
+    <thead>
+      <tr>
+        <th class="text-left">Flight Name</th>
+        <th class="text-left">Date/Time</th>
+        <th class="text-left"></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr v-if="!flightsSorted || flightsSorted.length === 0">
+        <td colspan="3" class="text-center">
+          No flights found.
+        </td>
+      </tr>
+      <tr v-for="flight in flightsSorted" :key="flight?._id">
+        <td>
+          <v-btn
+            @click="router.push(`/flight/${flight._vessel_id}/${flight!._id}`)"
+             variant="text" color="primary" size="small"
+            >
+            {{ flight!.name }}
+          </v-btn>
+        </td>
+        <td>
+          {{ new Date(Date.parse(asUtcString(flight!.start))).toLocaleDateString() }}
+          {{ new Date(Date.parse(asUtcString(flight!.start))).toLocaleTimeString() }}
+        </td>
+        <td class="buttons">
+              <button class="button is-primary" @click="router.push(`/flight/${flight._vessel_id}/${flight!._id}`)">
                 View
               </button>
               <button 
                 v-if="
-                  item.permissions?.[currentUser!.uid] === 'owner' || 
-                  item.no_auth_permission === 'owner' ||
+                  flight.permissions?.[currentUser!.uid] === 'owner' || 
+                  flight.no_auth_permission === 'owner' ||
                   vesselPermissions?.[currentUser!.uid] === 'owner' ||
                   vesselNoAuthPermissions === 'owner'"
                 class="button is-danger is-light" 
-                @click="deleteFlight(item._id)">
+                @click="deleteFlight(flight._id)">
                 Delete
               </button>
             </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </template>
+
+      </tr>
+    </tbody>
+  </v-table>
+</template>
   
   <script setup lang="ts">
   import { fromImmediate, useObservableShallow } from '@/helper/reactivity';
