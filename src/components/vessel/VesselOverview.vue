@@ -35,7 +35,7 @@
 import { useObservableShallow } from '@/helper/reactivity';
 import { fetchVesselsIfNecessary, getLoadingState, getVessels } from '@/stores/vessels';
 
-import VesselCreate from './VesselCreate.vue';
+import VesselCreate from './VesselCreateDialog.vue';
 import VesselList from './VesselList.vue';
 import { computed } from 'vue';
 
