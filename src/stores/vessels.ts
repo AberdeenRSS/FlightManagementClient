@@ -94,6 +94,18 @@ export async function fetchVesselsIfNecessary() {
 
 }
 
+export async function insertVessel(vessel: Vessel) {
+    if (state.value.vessels[vessel._id])
+        return;
+
+    state.value.vessels[vessel._id] = {
+        entity: vessel,
+        loadingDetails: 'LOADED'
+    }
+
+    triggerRef(state)
+}
+
 export async function fetchHistoricVessel(id: string, version: number) {
 
     const key = `${id}*${version}`
