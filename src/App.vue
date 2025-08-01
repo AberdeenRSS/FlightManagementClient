@@ -50,19 +50,13 @@ trySilentLogin()
         <v-btn @click="router.push('/')">Home</v-btn>
       </template>
 
-
-
-
       <template v-slot:append>
         <AuthenticationIndicator></AuthenticationIndicator>
       </template>
     </v-app-bar>
 
-    <v-main>
-      <div style="height: 100%;">
-
+    <v-main class="fill-height">
         <RouterView />
-      </div>
     </v-main>
   </v-layout>
 </template>
