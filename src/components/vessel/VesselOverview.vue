@@ -1,26 +1,14 @@
 <template>
   <div class="container is-fluid content-container">
-    <div class="mb-5">
-      <h2 class="title is-4 mb-3">Add Vessel</h2>
-      <div class="field has-addons">
-        <div class="control is-expanded">
-          <input 
-            class="input"
-            type="text"
-            v-model="newVesselName"
-            placeholder="New Vessel Name"
-          >
-        </div>
-        <div class="control">
-          <button 
-            @click="addVessel"
-            class="button is-primary"
-          >
-            Submit
-          </button>
-        </div>
-      </div>
-    </div>
+    <v-row class="mb-5">
+      <v-col>
+        <h2 class="title is-4 mb-3">Vessels</h2>
+      </v-col>
+      <v-col>
+        <VesselCreate @vessel-created="fetchVesselsIfNecessary()"></VesselCreate>
+
+      </v-col>
+    </v-row>
     <div>
       <div class="table-container" style="max-height: calc(80vh - 120px); overflow-y: auto;">
         <table class="table is-fullwidth is-hoverable">
@@ -77,35 +65,26 @@
   import { useObservableShallow } from '@/helper/reactivity';
   import { fetchVesselsIfNecessary, getVessels } from '@/stores/vessels';
   import { useRouter } from 'vue-router';
-  import { computed, ref } from 'vue';
   import { useAuthHeaders } from '../../composables/api/getHeaders'
   import axios from 'axios';
   import { useRssApiBaseUri } from '../../composables/api/rssFlightServerApi'
+
   import { useUser } from '@/composables/auth/useUser';
+  import VesselCreate from '../vessels/VesselCreate.vue';
+
   
-  const newVesselName = ref('')
   const authHeaders = useAuthHeaders();
-  const { currentUser } = useUser();
 
   const url = computed(() => `/vessel/create_vessel/${newVesselName.value}`)
+
+  const { currentUser } = useUser();
+
+
   const router = useRouter()
   const vessels = useObservableShallow(getVessels(), { initialValue: undefined })
   
   fetchVesselsIfNecessary()
   
-  async function addVessel() {
-    if (newVesselName.value.length === 0) {
-      alert("No name given")
-      return
-    }
-    try {
-      await axios.post(`${useRssApiBaseUri()}${url.value}`, {}, { headers: authHeaders.value })
-      newVesselName.value = '' // Clear the input after successful addition
-    } catch (e) {
-      alert("Error creating vessel: " + e)
-    }
-  }
-
   async function deleteVessel(vessel_id: string){
     if (!window.confirm('Are you sure you want to delete this vessel?')) {
       return;
