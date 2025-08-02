@@ -5,7 +5,6 @@
                 v-bind="activatorProps" 
                 variant="flat"
                 class="rounded"
-                size="small"
                 color="primary">
                  Create Vessel
             </v-btn>

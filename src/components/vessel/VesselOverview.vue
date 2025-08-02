@@ -10,16 +10,7 @@
       </v-col>
     </v-row>
     <div>
-      <div v-if="loading === 'REQUESTED' || loading === 'NOT_REQUESTED'" class="text-center pa-4">
-        <v-progress-circular indeterminate></v-progress-circular>
-        <p class="mt-2">Loading vessels...</p>
-      </div>
-      
-      <div v-else-if="loading === 'ERROR'" class="text-center pa-4">
-        <v-alert type="error">Failed to load vessels</v-alert>
-      </div>
-      
-      <VesselList v-else :vessels="vessels"></VesselList>
+      <VesselList :vessels="vessels" :loading="loading"></VesselList>
     </div>
   </div>
 </template>
