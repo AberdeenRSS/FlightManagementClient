@@ -1,5 +1,5 @@
 <template>
-  <div class="content-container">
+  <div class="content-container px-2">
     <v-row class="mb-5">
       <v-col>
         <h2 class="title is-4 mb-3">Vessels</h2>
