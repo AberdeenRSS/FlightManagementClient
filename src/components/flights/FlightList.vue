@@ -4,6 +4,7 @@
       <tr>
         <th class="text-left">Flight Name</th>
         <th class="text-left">Date/Time</th>
+        <th class="text-left">Duration</th>
         <th class="text-left"></th>
       </tr>
     </thead>
@@ -33,6 +34,9 @@
         <td>
           {{ new Date(Date.parse(asUtcString(flight!.start))).toLocaleDateString() }}
           {{ new Date(Date.parse(asUtcString(flight!.start))).toLocaleTimeString() }}
+        </td>
+        <td>
+          <FlightDurationBadge :start="flight!.start" :end="flight?.end" />
         </td>
         <td class="text-right">
           <v-menu>
@@ -75,6 +79,7 @@ import { useAuthHeaders } from '../../composables/api/getHeaders'
 import { useRssApiBaseUri } from '@/composables/api/rssFlightServerApi';
 import axios from 'axios';
 import type { LoadingStates } from '@/stores/flight';
+import FlightDurationBadge from '@/components/flights/FlightDurationBadge.vue';
 
 
 const props = defineProps({
@@ -114,6 +119,7 @@ const flightsSorted$ = getFlights($vesselId).pipe(
 )
 
 const flightsSorted = useObservableShallow(flightsSorted$)
+
 const loading = useObservableShallow(getFlights($vesselId).pipe(
   map(flights => flights.loading)
 ), { initialValue: props.loading });
