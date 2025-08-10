@@ -65,19 +65,17 @@
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
-import { useAuthHeaders } from '../../composables/api/getHeaders'
-import axios from 'axios';
-import { useRssApiBaseUri } from '../../composables/api/rssFlightServerApi'
+import { deleteRssApi } from '../../composables/api/rssFlightServerApi'
 import { useUser } from '@/composables/auth/useUser';
 import { removeVessel, type Vessel } from '@/stores/vessels';
 import type { LoadingStates } from '@/stores/vessels';
+import { until } from '@vueuse/core';
 
 defineProps<{
     vessels: (Vessel | null)[],
     loading: LoadingStates | string
 }>();
 
-const authHeaders = useAuthHeaders();
 const router = useRouter()
 const { currentUser } = useUser();
 
@@ -87,16 +85,13 @@ async function deleteVessel(vessel_id: string) {
     if (!window.confirm('Are you sure you want to delete this vessel?')) {
         return;
     }
-    try {
-        const result = await axios.delete(`${useRssApiBaseUri()}/v1/vessels/${vessel_id}`, { headers: authHeaders.value })
-        if (result.status === 200) {
-            alert("Vessel deleted successfully")
-            removeVessel(vessel_id)
-        } else {
-            alert("Failed to delete vessel: " + result.statusText)
-        }
-    } catch (e) {
-        alert("Error deleting vessel: " + e)
+    const { error, isFinished } = await deleteRssApi(`/v1/vessels/${vessel_id}`);
+    await until(isFinished).toBe(true);
+    if (error.value) {
+        alert("Error deleting vessel: " + error.value);
+    } else {
+        alert("Vessel deleted successfully");
+        removeVessel(vessel_id);
     }
 }
 </script>
