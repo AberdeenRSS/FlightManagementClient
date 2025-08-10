@@ -30,5 +30,3 @@ jobs:
             cd /usr/share/uoarocketry-docker/docker
             sudo -n /usr/bin/docker-compose stop
             sudo -n /usr/bin/docker-compose up -d
-            sudo -n /usr/bin/docker container prune -f
-            sudo -n /usr/bin/docker image prune -f
