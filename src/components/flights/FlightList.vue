@@ -75,11 +75,10 @@ import { reactive, toRefs, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUser } from '@/composables/auth/useUser';
 
-import { useAuthHeaders } from '../../composables/api/getHeaders'
-import { useRssApiBaseUri } from '@/composables/api/rssFlightServerApi';
-import axios from 'axios';
+import { deleteRssApi } from '@/composables/api/rssFlightServerApi';
 import type { LoadingStates } from '@/stores/flight';
 import FlightDurationBadge from '@/components/flights/FlightDurationBadge.vue';
+import { until } from '@vueuse/core';
 
 
 const props = defineProps({
@@ -108,7 +107,6 @@ const { $vesselId } = reactive({ $vesselId: vesselId })
 const { currentUser } = useUser();
 
 const router = useRouter()
-const authHeaders = useAuthHeaders();
 
 
 
@@ -124,19 +122,18 @@ const loading = useObservableShallow(getFlights($vesselId).pipe(
   map(flights => flights.loading)
 ), { initialValue: props.loading });
 
+
 async function deleteFlight(flight_id: string) {
   if (!window.confirm('Are you sure you want to delete this flight?')) {
     return;
   }
-  try {
-    const result = await axios.delete(`${useRssApiBaseUri()}/v1/flights/${flight_id}`, { headers: authHeaders.value })
-    if (result.status === 200) {
-      alert("Flight deleted successfully")
-    } else {
-      alert("Failed to delete flight: " + result.statusText)
-    }
-  } catch (e) {
-    alert("Error deleting flight: " + e)
+  const { error, isFinished } = await deleteRssApi(`/v1/flights/${flight_id}`);
+  await until(isFinished).toBe(true);
+
+  if (error.value) {
+    alert("Error deleting flight: " + error.value);
+  } else {
+    alert("Flight deleted successfully");
   }
 }
 

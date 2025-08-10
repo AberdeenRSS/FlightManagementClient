@@ -53,6 +53,17 @@ export const postRssApi = createFetch({
     },
 })
 
+export const deleteRssApi = createFetch({
+    baseUrl: baseUri,
+    options: {
+        beforeFetch
+    },
+    fetchOptions: {
+        mode: 'cors',
+        method: 'delete',
+    },
+})
+
 //const socketIoManager: { [namespace: string]: Ref<Socket | undefined> } = {}
 const BASE_NAMESPACE = '__BASE_NAMESPACE__'
 
