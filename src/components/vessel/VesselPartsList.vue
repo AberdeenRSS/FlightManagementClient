@@ -1,6 +1,6 @@
 <template>
     <v-container fluid class="pa-2">
-        <v-row>
+        <v-row v-if="vessel.parts.length > 0">
             <!-- Part Details Column - Shows first on mobile -->
             <v-col cols="12" md="6" lg="7" xl="8" order="1" order-md="2">
                 <v-card elevation="2" class="h-100">
@@ -56,6 +56,11 @@
                         </v-list>
                     </v-card-text>
                 </v-card>
+            </v-col>
+        </v-row>
+        <v-row v-else>
+            <v-col cols="12">
+                <p>No parts</p>
             </v-col>
         </v-row>
     </v-container>
