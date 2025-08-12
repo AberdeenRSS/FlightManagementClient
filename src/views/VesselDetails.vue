@@ -21,7 +21,9 @@
         </v-tabs>
 
         <v-card-text>
-          <v-window v-model="tab">
+          <v-window v-model="tab" 
+            class="no-transition"
+            >
             <v-window-item value="flights">
               <FlightList :vessel-id="id"></FlightList>
             </v-window-item>
@@ -80,3 +82,13 @@ const hasOwnerPermission = computed(() => {
 
 
 </script>
+
+<style scoped>
+.no-transition :deep(.v-window__container) {
+  transition: none !important;
+}
+
+.no-transition :deep(.v-window-item) {
+  transition: none !important;
+}
+</style>
