@@ -1,6 +1,5 @@
 // fetch.js
-import { createFetch, until, type BeforeFetchContext } from '@vueuse/core'
-import { Socket, io } from "socket.io-client"
+import { createFetch, type BeforeFetchContext } from '@vueuse/core'
 import { shallowRef, triggerRef, type Ref } from 'vue'
 import { useUser } from '../auth/useUser';
 import mqtt from 'mqtt'
@@ -54,7 +53,18 @@ export const postRssApi = createFetch({
     },
 })
 
-const socketIoManager: { [namespace: string]: Ref<Socket | undefined> } = {}
+export const deleteRssApi = createFetch({
+    baseUrl: baseUri,
+    options: {
+        beforeFetch
+    },
+    fetchOptions: {
+        mode: 'cors',
+        method: 'delete',
+    },
+})
+
+//const socketIoManager: { [namespace: string]: Ref<Socket | undefined> } = {}
 const BASE_NAMESPACE = '__BASE_NAMESPACE__'
 
 
@@ -68,7 +78,7 @@ const BASE_NAMESPACE = '__BASE_NAMESPACE__'
 //     return socketIoManager[namespace ?? BASE_NAMESPACE]
 
 // }
-
+/*
 async function buildNewWebsocketConnection(namespace?: string) {
     const { currentUser } = useUser()
 
@@ -90,7 +100,7 @@ async function buildNewWebsocketConnection(namespace?: string) {
     triggerRef(socketIoManager[namespace ?? BASE_NAMESPACE])
 
     return ws
-}
+}*/
 
 const mqttManager: { [namespace: string]: Ref<mqtt.MqttClient | undefined> } = {}
 

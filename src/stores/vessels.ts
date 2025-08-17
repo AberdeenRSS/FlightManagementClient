@@ -76,22 +76,33 @@ export async function fetchVesselsIfNecessary() {
         return
     }
 
-    JSON.parse(data.value as string).forEach((v: Vessel) => {
-
-        // Don't overwrite vessels already loaded
-        if (state.value.vessels[v._id])
-            return
-
-        state.value.vessels[v._id] = {
-            entity: v,
-            loadingDetails: 'LOADED'
-        }
-    });
+    JSON.parse(data.value as string).forEach((v: Vessel) => insertVessel(v));
 
     state.value.loadingStates = 'LOADED'
 
     triggerRef(state)
 
+}
+
+export async function insertVessel(v: Vessel) {
+    if (state.value.vessels[v._id])
+        return;
+
+    state.value.vessels[v._id] = {
+        entity: v,
+        loadingDetails: 'LOADED'
+    }
+
+    triggerRef(state)
+}
+
+export async function removeVessel(id: string) {
+    if (!state.value.vessels[id])
+        return;
+
+    delete state.value.vessels[id]
+
+    triggerRef(state)
 }
 
 export async function fetchHistoricVessel(id: string, version: number) {
