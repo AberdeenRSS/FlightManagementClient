@@ -28,7 +28,8 @@ jobs:
       run: |
         cd dist
         # Create 404.html symlink for SPA routing
-        ln -s index.html 404.html
+        cp index.html 404.html
+        touch .nojekyll
         # echo 'app.uoarocketry.org' > CNAME
 
     - name: Deploy to gh-pages branch
