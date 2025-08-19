@@ -141,7 +141,9 @@ export type Flight = {
     start: string;
     end: string | undefined;
     available_commands: { [partId: string]: CommandInfo[] }
-    measured_parts: { [part_id: string]: ({ name: string, type: string | [string, string][] })[] }
+    measured_parts: { [part_id: string]: ({ name: string, type: string | [string, string][] })[] };
+    permissions: { [uid: string]: string };
+    no_auth_permission: string; // The permission you have if you are not in permissions
 }
 
 type FlightState = {
