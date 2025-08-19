@@ -30,7 +30,7 @@ jobs:
         # Create 404.html symlink for SPA routing
         cp index.html 404.html
         touch .nojekyll
-        # echo 'app.uoarocketry.org' > CNAME
+        # echo 'dashboard.uoarocketry.org' > CNAME
 
     - name: Deploy to gh-pages branch
       run: |
