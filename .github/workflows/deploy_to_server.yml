@@ -1,32 +1,32 @@
-name: Deploy to Server
+# name: Deploy to Server
 
-on:
-  push:
-    branches: [main]
+# on:
+#   push:
+#     branches: [main]
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+# concurrency:
+#   group: ${{ github.workflow }}-${{ github.ref }}
+#   cancel-in-progress: true
   
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+# jobs:
+#   build:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v2
 
-      - name: Deploy using SSH
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 22
-          script: |
-            cd ~/repos/AberdeenRSS/FlightManagementClient
-            git checkout main
-            git pull
-            sudo -n /usr/bin/docker build . -t flight-management-client:latest
-            cd /usr/share/uoarocketry-docker/docker
-            sudo -n /usr/bin/docker-compose stop
-            sudo -n /usr/bin/docker-compose up -d
+#       - name: Deploy using SSH
+#         uses: appleboy/ssh-action@master
+#         with:
+#           host: ${{ secrets.SERVER_HOST }}
+#           username: ${{ secrets.SERVER_USER }}
+#           key: ${{ secrets.SSH_PRIVATE_KEY }}
+#           port: 22
+#           script: |
+#             cd ~/repos/AberdeenRSS/FlightManagementClient
+#             git checkout main
+#             git pull
+#             sudo -n /usr/bin/docker build . -t flight-management-client:latest
+#             cd /usr/share/uoarocketry-docker/docker
+#             sudo -n /usr/bin/docker-compose stop
+#             sudo -n /usr/bin/docker-compose up -d

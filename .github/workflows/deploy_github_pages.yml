@@ -1,0 +1,42 @@
+name: Build and Deploy Vue to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build Vue app
+      run: npm run build
+
+    - name: Setup build for GitHub Pages
+      run: |
+        cd dist
+        # Create 404.html symlink for SPA routing
+        ln -s index.html 404.html
+        # echo 'app.uoarocketry.org' > CNAME
+
+    - name: Deploy to gh-pages branch
+      run: |
+        cd dist
+        git init
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        git add -A
+        git commit -m "Deploy to GitHub Pages"
+        git push -f https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:gh-pages
