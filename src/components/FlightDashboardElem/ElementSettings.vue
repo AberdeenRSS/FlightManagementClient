@@ -59,12 +59,6 @@
     </div>
 </template>
 
-<style>
-.v-label {
-  color: black !important;
-}
-
-</style>
 
 <script lang="ts" setup>
 
