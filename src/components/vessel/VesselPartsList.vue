@@ -39,11 +39,21 @@
             <!-- Parts List Column - Shows second on mobile -->
             <v-col cols="12" md="6" lg="5" xl="4" order="2" order-md="1">
                 <v-card elevation="2">
-                    <v-card-title class="bg-primary text-white">
-                        Parts
+                    <v-card-title class="bg-primary text-white d-flex">
+                        <p>Parts</p>                        
                     </v-card-title>
                     <v-divider></v-divider>
                     <v-card-text class="pa-0">
+                        <v-text-field 
+                            class="pa-4"
+                            v-model="partSearchQuery"
+                            prepend-inner-icon="mdi-magnify"
+                            variant="outlined"
+                            density="compact"
+                            clearable
+                            hide-details
+                            >
+                        </v-text-field>
                         <v-list
                             :items="vessel.parts"
                             item-value="_id"
