@@ -256,6 +256,9 @@ function makeDatasets(flight: Flight, partId: string) {
 
     const res: ChartDataset<'line', DefaultDataPoint<'line'>>[] = []
 
+    if(!availableSeries)
+        return res
+
     for (const series of availableSeries) {
 
 
