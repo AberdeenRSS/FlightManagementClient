@@ -154,7 +154,7 @@ import CommandDispatch from '@/components/command/CommandDispatch.vue';
 import AdvancedDatetimeSelector from '@/components/misc/advanced-datetime-selector/AdvancedDatetimeSelector.vue';
 import CommandHistory from '@/components/command/CommandHistory.vue'
 import Log from '@/components/flight_data/Log.vue';
-import { computed, ref, watch } from 'vue';
+import { computed, inject, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useDashboardPersistStore } from '@/components/misc/dashboard/DashboardComposable';
 import WidgetDashboard from '@/components/misc/dashboard/WidgedDashboard.vue';
@@ -165,12 +165,13 @@ import { fetchFlightsForVesselIfNecessary, getFlight} from '@/stores/flight';
 import { v4 } from 'uuid';
 
 import { useObservableShallow } from '@/helper/reactivity';
-import { fetchHistoricVessel } from '@/stores/vessels';
+import { fetchHistoricVessel, fetchVesselsIfNecessary, getVessel } from '@/stores/vessels';
 import { filter } from 'rxjs';
 
 import { useFlightDataStore } from '@/stores/flight_data';
 import {asUtcString} from '@/helper/time'
 
+const navbar: any = inject('navbar')
 const route = useRoute()
 const vessel_id = route.params.vessel_id as string
 const id = route.params.id as string
@@ -216,11 +217,52 @@ watch(live, l => {
     }
 },{ immediate: true })
 
+fetchVesselsIfNecessary()
 fetchFlightsForVesselIfNecessary(vessel_id)
 
+const vessel = useObservableShallow(getVessel(vessel_id))
 const flight$ = getFlight(vessel_id, id)
 const flight = useObservableShallow(flight$)
 
+watch(vessel, (newVessel) => {
+    if (newVessel?.name) {
+        navbar.setBreadcrumbs([
+      {
+        show: true,
+        loading: false,
+        title: 'Vessels',
+        link: '/'
+      },
+      {
+        show: true,
+        loading: false,
+        title: newVessel.name,
+        link: `/vessel/details/${newVessel._id}`
+      },
+      {
+        show: true,
+        loading: false,
+        title: flight.value?.name ?? 'Loading...',
+        link: `/vessels/${newVessel._id}/flights/${flight.value?._id}`
+      }
+    ])
+    } else {
+        navbar.setBreadcrumbs([
+      {
+        show: true,
+        loading: false,
+        title: 'Vessels',
+        link: '/'
+      },
+      {
+        show: true,
+        loading: false,
+        title: 'Loading...',
+        link: ''
+      }
+    ])
+    }
+}, { immediate: true })
 
 const startTime = computed(() => flight.value ? new Date(Date.parse(asUtcString(flight.value.start))) : undefined)
 const endTime = computed(() => (flight.value && flight.value.end) ? new Date(Date.parse(asUtcString(flight.value.end))) : undefined)
@@ -270,5 +312,48 @@ watch(flight, f => {
 
 flight$.pipe(filter(f => !!f)).subscribe(f => fetchHistoricVessel(f!._vessel_id, f!._vessel_version))
 
+onMounted(() => {
+    if (!vessel.value) {
+        navbar.setBreadcrumbs([
+      {
+        show: true,
+        loading: false,
+        title: 'Vessels',
+        link: '/'
+      },
+      {
+        show: true,
+        loading: false,
+        title: 'Loading...',
+        link: ''
+      }
+    ])
+    } else {
+        navbar.setBreadcrumbs([
+      {
+        show: true,
+        loading: false,
+        title: 'Vessels',
+        link: '/'
+      },
+      {
+        show: true,
+        loading: false,
+        title: vessel.value.name,
+        link: `/vessel/details/${vessel.value._id}`
+      },
+      {
+        show: true,
+        loading: false,
+        title: flight.value?.name ?? 'Loading...',
+        link: `/vessels/${vessel.value._id}/flights/${flight.value?._id}`
+      }
+    ])
+    }
+})
+
+onUnmounted(() => {
+    navbar.clearBreadcrumbs()
+})
 </script>
 
