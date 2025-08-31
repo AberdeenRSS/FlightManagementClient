@@ -37,7 +37,7 @@ function register() {
                         v-bind="props" 
                         variant="flat"
                         class="rounded"
-                        color="primary"
+                        color=""
                         block="false">
                         <v-icon>mdi-account</v-icon>
                     </v-btn>
